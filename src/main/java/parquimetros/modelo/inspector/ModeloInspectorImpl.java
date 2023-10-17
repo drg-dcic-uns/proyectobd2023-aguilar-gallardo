@@ -13,9 +13,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import parquimetros.modelo.ModeloImpl;
-import parquimetros.modelo.beans.InspectorBean;
-import parquimetros.modelo.beans.ParquimetroBean;
-import parquimetros.modelo.beans.UbicacionBean;
+import parquimetros.modelo.beans.*;
 import parquimetros.modelo.inspector.dao.DAOParquimetro;
 import parquimetros.modelo.inspector.dao.DAOParquimetroImpl;
 import parquimetros.modelo.inspector.dao.DAOInspector;
@@ -67,13 +65,22 @@ public class ModeloInspectorImpl extends ModeloImpl implements ModeloInspector {
 		 */
 		ArrayList<UbicacionBean> ubicaciones = new ArrayList<UbicacionBean>();
 
-		// Datos estáticos de prueba. Quitar y reemplazar por código que recupera las ubicaciones de la B.D. en una lista de UbicacionesBean		 
-		DAOUbicacionesDatosPrueba.poblar();
-		
-		for (UbicacionBean ubicacion : DAOUbicacionesDatosPrueba.datos.values()) {
-			ubicaciones.add(ubicacion);	
+		String sql= "SELECT calle,altura FROM parquimetros GROUP BY calle,altura ;";
+		conectar("inspector", "inspector");
+		ResultSet rs=null;
+
+		try {
+			rs = consulta(sql);
+			while(rs.next()){
+				UbicacionBean ubicacion= new UbicacionBeanImpl();
+				ubicacion.setCalle(rs.getString("calle"));
+				ubicacion.setAltura(Integer.parseInt(rs.getString("altura")));
+				ubicaciones.add(ubicacion);
+			}
+
+		}catch (NullPointerException e) {
+			System.out.println("Mensaje: " + e.getMessage()); // Mensaje retornado por MySQL
 		}
-		// Fin datos estáticos de prueba.
 	
 		return ubicaciones;
 	}
@@ -94,14 +101,23 @@ public class ModeloInspectorImpl extends ModeloImpl implements ModeloInspector {
 
 		ArrayList<ParquimetroBean> parquimetros = new ArrayList<ParquimetroBean>();
 
-		// Datos estáticos de prueba. Quitar y reemplazar por código que recupera los parquimetros de la B.D. en una lista de ParquimetroBean
-		DAOParquimetrosDatosPrueba.poblar(ubicacion);
-		
-		for (ParquimetroBean parquimetro : DAOParquimetrosDatosPrueba.datos.values()) {
-			parquimetros.add(parquimetro);	
+		String sql= "SELECT * FROM parquimetros WHERE calle = '" + ubicacion.getCalle() + "' AND altura = " + ubicacion.getAltura() + ";";
+		conectar("inspector", "inspector");
+		ResultSet rs=null;
+		try {
+			rs = consulta(sql);
+			while(rs.next()){
+				ParquimetroBean par=new ParquimetroBeanImpl();
+				par.setId(Integer.parseInt(rs.getString("id_parq")));
+				par.setUbicacion(ubicacion);
+				par.setNumero(Integer.parseInt(rs.getString("numero")));
+				parquimetros.add(par);
+			}
+
+		}catch (NullPointerException e) {
+			System.out.println("Mensaje: " + e.getMessage()); // Mensaje retornado por MySQL
 		}
-		// Fin datos estáticos de prueba.
-	
+
 		return parquimetros;
 	}
 
@@ -127,8 +143,97 @@ public class ModeloInspectorImpl extends ModeloImpl implements ModeloInspector {
 		 * @param parquimetro
 		 * @throws ConexionParquimetroException
 		 * @throws Exception
-		 */		
-		
+		 */
+
+		conectar("inspector", "inspector");
+		String consultaHora=" SELECT CURTIME();";
+		String consultaFecha= "SELECT CURDATE();";
+		String consultaDia="";
+
+		String dia = null;
+		String horaTotal = null;
+		String fechaAcceso= null;
+		String[] separacionHora= new String[3];
+		String turno = null;
+
+		int hora= 0;
+		int diaBaseDeDatos = 0;
+
+		ResultSet horaRes=null;
+		ResultSet FechaRes=null;
+		ResultSet diaRes=null;
+		ResultSet autorizado=null;
+
+		try {
+			FechaRes = consulta(consultaFecha);
+			horaRes = consulta(consultaHora);
+
+			while (horaRes.next()) {
+				horaTotal = horaRes.getString("CURTIME()");
+			}
+			while (FechaRes.next()){
+				fechaAcceso=FechaRes.getString("CURDATE()");
+			}
+			consultaDia="SELECT DAYOFWEEK('"+fechaAcceso+"');";
+			diaRes = consulta(consultaDia);
+
+			while (diaRes.next()) {
+				diaBaseDeDatos = diaRes.getInt("DAYOFWEEK('"+fechaAcceso+"')");
+			}
+
+		}catch (SQLException e) {
+			System.out.println("Mensaje: " + e.getMessage()); // Mensaje retornado por MySQL
+			System.out.println("Código: " + e.getErrorCode()); // Código de error de MySQL
+			System.out.println("SQLState: " + e.getSQLState()); // Código de error del SQL standart
+		}
+		switch(diaBaseDeDatos){
+			case 1: dia="do"; break;
+
+			case 2: dia="lu"; break;
+
+			case 3: dia="ma"; break;
+
+			case 4: dia="mi"; break;
+
+			case 5: dia="ju"; break;
+
+			case 6: dia="vi"; break;
+
+			case 7: dia="sab"; break;
+		}
+		separacionHora=horaTotal.split(":");
+		hora = Integer.parseInt(separacionHora[0]);
+
+		if (hora>=8 && hora<=13){
+			turno="m";
+		} else if(hora>=14 && hora<=20){
+			turno="t";
+		}
+
+		String sql="SELECT calle,altura FROM asociado_con WHERE legajo="+inspectorLogueado.getLegajo()+" AND dia='"+dia+"' AND turno='"+turno+"';";
+
+		boolean autorizadoEnParquimetro = false;
+		try {
+			autorizado = consulta(sql);
+			while (autorizado.next() && !autorizadoEnParquimetro) {
+				if (autorizado.getString("calle").equals(parquimetro.getUbicacion().getCalle()) && autorizado.getInt("altura") == parquimetro.getUbicacion().getAltura()) {
+					String sql2 = "INSERT INTO accede (fecha, hora, id_parq, legajo) VALUES ('" + fechaAcceso + "','" + horaTotal + "'," + parquimetro.getId()+ "," +inspectorLogueado.getLegajo() + ");" ;
+					actualizacion(sql2);
+					autorizadoEnParquimetro = true;
+				}
+			}
+		}catch(SQLException e)
+		{
+			System.out.println("Mensaje: " + e.getMessage()); // Mensaje retornado por MySQL
+			System.out.println("Código: " + e.getErrorCode()); // Código de error de MySQL
+			System.out.println("SQLState: " + e.getSQLState()); // Código de error del SQL standart
+		}
+
+
+		if(!autorizadoEnParquimetro){
+			throw new ConexionParquimetroException("Inspector no autorizado en la ubicación del parquímetro");
+		}
+
 	}
 
 	@Override

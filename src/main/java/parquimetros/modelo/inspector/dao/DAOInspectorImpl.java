@@ -1,11 +1,20 @@
 package parquimetros.modelo.inspector.dao;
 
+import java.math.BigInteger;
+import java.security.MessageDigest;
+import java.security.NoSuchAlgorithmException;
 import java.sql.Connection;
+import java.sql.ResultSet;
+import java.sql.SQLException;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import parquimetros.modelo.Modelo;
+import parquimetros.modelo.ModeloImpl;
 
 import parquimetros.modelo.beans.InspectorBean;
 import parquimetros.modelo.beans.InspectorBeanImpl;
+import parquimetros.modelo.inspector.ModeloInspectorImpl;
 import parquimetros.modelo.inspector.exception.InspectorNoAutenticadoException;
 import parquimetros.utils.Mensajes;
 
@@ -32,35 +41,32 @@ public class DAOInspectorImpl implements DAOInspector {
 		 *      Importante: Para acceder a la B.D. utilice la propiedad this.conexion (de clase Connection) 
 		 *      que se inicializa en el constructor.      
 		 */
-		 
 
-		//Datos estáticos de prueba. Quitar y reemplazar por código que recupera los datos reales.
-		//
-		// Diseño de datos de prueba: Los legajos que terminan en 
-		//  * 1 al 8 retorna exitosamente con el inspector encontrado.
-		//  * 9 produce una excepción de InspectorNoAutenticadoException
-		//  * 0 propaga la excepción recibida (produce una Exception)
- 		// 
-		InspectorBean inspector;
-		
-		int ultimo = Integer.parseInt(legajo.substring(legajo.length()-1));
-		
-		if (ultimo == 0) {
-			throw new Exception(Mensajes.getMessage("DAOInspectorImpl.autenticar.errorConexion"));
-		} else if (ultimo == 9) {
-			throw new InspectorNoAutenticadoException(Mensajes.getMessage("DAOInspectorImpl.autenticar.inspectorNoAutenticado"));			
-		} else {			
-			inspector = new InspectorBeanImpl();
-			inspector.setLegajo(Integer.parseInt(legajo));
-			inspector.setApellido("Apellido"+legajo);
-			inspector.setNombre("Nombre"+legajo);
-			inspector.setDNI(legajo.hashCode() % 1000000);	
-			inspector.setPassword("45c48cce2e2d7fbdea1afc51c7c6ad26"); // md5(9);
+		String sql= "SELECT legajo,password FROM inspectores WHERE legajo = " + legajo + " AND password = md5('" + password + "');";
+		Modelo modelo = new ModeloInspectorImpl();
+		modelo.conectar("inspector", "inspector");
+		ResultSet rs=null;
+		try {
+			rs = modelo.consulta(sql);
+			//rs= this.conexion.createStatement().executeQuery(sql);
+		} catch (Exception e) {
+			System.out.println("Mensaje: " + e.getMessage()); // Mensaje retornado por MySQL
 		}
-		
+
+		InspectorBean inspector=null;
+
+		while(rs.next()){
+				inspector= new InspectorBeanImpl();
+				inspector.setLegajo(Integer.parseInt(rs.getString("legajo")));
+				inspector.setPassword(rs.getString("password"));
+		}
+
 		return inspector;
-		// Fin datos estáticos de prueba.
-	}	
+	}
+
+
+
+
 
 
 }

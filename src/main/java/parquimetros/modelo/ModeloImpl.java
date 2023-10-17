@@ -30,25 +30,28 @@ public class ModeloImpl implements Modelo {
 	}
 
 	@Override
-	public ResultSet consulta(String sql)	       		
+	public ResultSet consulta(String sql)
 	{
 		logger.info("Se intenta realizar la siguiente consulta {}",sql);
 		
 		/** TODO: ejecutar la consulta sql recibida como parámetro utilizando 
 		*         la propiedad conexion y devolver el resultado en un ResulSet
 		*/
-		/* 
+
+		ResultSet rs= null;
 		try
 		{ 
-		 
+			Statement stmt = this.conexion.createStatement();
+			rs = stmt.executeQuery(sql);
+
 		}
 		catch (SQLException ex){
 		   logger.error("SQLException: " + ex.getMessage());
 		   logger.error("SQLState: " + ex.getSQLState());
 		   logger.error("VendorError: " + ex.getErrorCode());
 		}
-		*/
-		return null;
+
+		return rs;
 	}	
 	
 	@Override
@@ -56,15 +59,15 @@ public class ModeloImpl implements Modelo {
 	{  /** TODO: ejecutar la consulta de actualizacion sql recibida como 
  		*       parámetro utilizando la propiedad conexion 
 		*/  
-		/*
-		try
-		{ 	
+
+		try {
+			Statement stmt = this.conexion.createStatement();
+			stmt.executeUpdate(sql);
 		}
-		catch (SQLException ex) {
-			logger.error("SQLException: " + ex.getMessage());
-			logger.error("SQLState: " + ex.getSQLState());
-			logger.error("VendorError: " + ex.getErrorCode());
+		catch(SQLException ex){
+			System.out.println("Mensaje: " + ex.getMessage()); // Mensaje retornado por MySQL
+			System.out.println("Código: " + ex.getErrorCode()); // Código de error de MySQL
+			System.out.println("SQLState: " + ex.getSQLState()); // Código de error del SQL standart
 		}
-		*/
 	}	
 }
