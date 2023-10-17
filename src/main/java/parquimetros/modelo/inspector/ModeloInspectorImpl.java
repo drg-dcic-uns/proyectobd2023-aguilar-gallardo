@@ -1,9 +1,6 @@
 package parquimetros.modelo.inspector;
-
-import java.sql.Connection;
-import java.sql.PreparedStatement;
-import java.sql.ResultSet;
-import java.sql.SQLException;
+import java.text.SimpleDateFormat;
+import java.sql.*;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
@@ -275,6 +272,7 @@ public class ModeloInspectorImpl extends ModeloImpl implements ModeloInspector {
  		// 
 		// Utilizaremos el criterio que si es par el último digito de patente entonces está registrado correctamente el estacionamiento.
 		//
+		/*
 		String fechaEntrada, horaEntrada, estado;
 		
 		if (Integer.parseInt(patente.substring(patente.length()-1)) % 2 == 0) {
@@ -296,7 +294,49 @@ public class ModeloInspectorImpl extends ModeloImpl implements ModeloInspector {
 		}
 
 		return new EstacionamientoPatenteDTOImpl(patente, ubicacion.getCalle(), String.valueOf(ubicacion.getAltura()), fechaEntrada, horaEntrada, estado);
-		// Fin de datos de prueba
+		// Fin de datos de prueba */
+
+
+		EstacionamientoPatenteDTO retornar = null;
+		String estado = null;
+		String fechaEntrada = null;
+		String horaEntrada = null;
+
+		String sql = "SELECT fecha_ent, hora_ent FROM estacionados WHERE patente=? AND calle=? AND altura=?;";
+		ResultSet rs = null;
+		PreparedStatement stmt = null;
+		SimpleDateFormat sdf = new SimpleDateFormat("yyyy/MM/dd");
+		DateTimeFormatter formatter = DateTimeFormatter.ISO_LOCAL_DATE_TIME;
+
+		try
+		{
+			stmt = this.conexion.prepareStatement(sql);
+			stmt.setString(1, patente);
+			stmt.setString(2, ubicacion.getCalle());
+			stmt.setInt(2, ubicacion.getAltura());
+			rs = stmt.executeQuery(sql);
+			if (rs.next()){
+				estado = EstacionamientoPatenteDTO.ESTADO_REGISTRADO;
+				fechaEntrada = sdf.format(rs.getDate("fecha_ent"));
+				horaEntrada = formatter.format(rs.getTimestamp("hora_ent").toLocalDateTime());
+			}
+			else{
+				estado = EstacionamientoPatenteDTO.ESTADO_NO_REGISTRADO;
+				fechaEntrada = "";
+				horaEntrada = "";
+			}
+		}
+		catch (SQLException ex){
+			logger.error("SQLException: " + ex.getMessage());
+			logger.error("SQLState: " + ex.getSQLState());
+			logger.error("VendorError: " + ex.getErrorCode());
+		}
+
+		retornar = new EstacionamientoPatenteDTOImpl(patente, ubicacion.getCalle(), String.valueOf(ubicacion.getAltura()), fechaEntrada, horaEntrada, estado);
+		stmt.close();
+
+		return retornar;
+
 	}
 	
 

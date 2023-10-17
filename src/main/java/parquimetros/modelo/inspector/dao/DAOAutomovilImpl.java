@@ -1,9 +1,14 @@
 package parquimetros.modelo.inspector.dao;
 
 import java.sql.Connection;
+import java.sql.PreparedStatement;
+import java.sql.ResultSet;
+import java.sql.SQLException;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import parquimetros.modelo.inspector.dto.EstacionamientoPatenteDTO;
 import parquimetros.modelo.inspector.exception.AutomovilNoEncontradoException;
 import parquimetros.utils.Mensajes;
 
@@ -34,7 +39,7 @@ public class DAOAutomovilImpl implements DAOAutomovil {
 		//  * 9 produce una excepción de AutomovilNoEncontradoException
 		//  * 0 propaga la excepción recibida (produce una Exception)
  		// 
-	
+		/*
 		int ultimo = Integer.parseInt(patente.substring(patente.length()-1));
 		
 		if (ultimo == 0) {
@@ -42,7 +47,23 @@ public class DAOAutomovilImpl implements DAOAutomovil {
 		} else if (ultimo == 9) {
 			throw new AutomovilNoEncontradoException(Mensajes.getMessage("DAOAutomovilImpl.recuperarAutomovilPorPatente.AutomovilNoEncontradoException"));			
 		} 
-		// Fin datos estáticos de prueba.		
+		// Fin datos estáticos de prueba.	*/
+		String sql = "SELECT patente FROM automoviles WHERE patente=?;";
+		ResultSet rs = null;
+
+		try
+		{
+			PreparedStatement stmt = this.conexion.prepareStatement(sql);
+			stmt.setString(1, patente);
+			rs = stmt.executeQuery(sql);
+			if (!rs.next()){
+				throw new AutomovilNoEncontradoException(Mensajes.getMessage("DAOAutomovilImpl.recuperarAutomovilPorPatente.AutomovilNoEncontradoException"));
+			}
+			stmt.close();
+		}
+		catch (SQLException ex){
+			throw new Exception("Hubo un error en la conexion o la consulta");
+		}
 	}
 
 }
