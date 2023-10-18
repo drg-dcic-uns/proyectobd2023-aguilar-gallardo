@@ -13,6 +13,7 @@ import parquimetros.modelo.beans.InspectorBeanImpl;
 import parquimetros.modelo.beans.ParquimetroBean;
 import parquimetros.modelo.beans.UbicacionBean;
 import parquimetros.modelo.inspector.dao.datosprueba.DAOParquimetrosDatosPrueba;
+import parquimetros.modelo.inspector.dto.EstacionamientoPatenteDTO;
 
 public class DAOParquimetroImpl implements DAOParquimetro {
 
@@ -34,10 +35,42 @@ public class DAOParquimetroImpl implements DAOParquimetro {
 		 */		
 
 		//Datos estáticos de prueba. Quitar y reemplazar por código que recupera los datos reales.
-		UbicacionBean ubicacion = DAOParquimetrosDatosPrueba.obtenerUbicacion(parquimetro.getId());
+		/*UbicacionBean ubicacion = DAOParquimetrosDatosPrueba.obtenerUbicacion(parquimetro.getId());
 		
-		return ubicacion;
-		//Fin datos de prueba 
+		return ubicacion;*/
+		String sql = "SELECT calle, altura FROM parquimetros WHERE id_parq = ?;";
+		ResultSet rs = null;
+		PreparedStatement stmt = null;
+		UbicacionBean retorno = null;
+
+		try {
+			stmt = this.conexion.prepareStatement(sql);
+			stmt.setInt(1, parquimetro.getId());
+			rs = stmt.executeQuery();
+
+			if (rs.next()) {
+				retorno.setCalle(rs.getString("calle"));
+				retorno.setAltura(rs.getInt("altura"));
+			}
+
+		}
+		catch (Exception e){
+			logger.error(e.getMessage());
+			e.printStackTrace();
+		} finally {
+			try {
+				if (rs != null) {
+					rs.close();
+				}
+				if (stmt != null) {
+					stmt.close();
+				}
+			} catch (SQLException e) {
+				logger.error("Error al cerrar la conexión: " + e.getMessage());
+				e.printStackTrace();
+			}
+		}
+		return retorno;
 		
 	}
 

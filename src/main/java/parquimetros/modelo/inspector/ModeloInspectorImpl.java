@@ -142,7 +142,7 @@ public class ModeloInspectorImpl extends ModeloImpl implements ModeloInspector {
 		 * @throws Exception
 		 */
 
-		conectar("inspector", "inspector");
+		//conectar("inspector", "inspector");
 		String consultaHora=" SELECT CURTIME();";
 		String consultaFecha= "SELECT CURDATE();";
 		String consultaDia="";
@@ -196,7 +196,7 @@ public class ModeloInspectorImpl extends ModeloImpl implements ModeloInspector {
 
 			case 6: dia="vi"; break;
 
-			case 7: dia="sab"; break;
+			case 7: dia="sa"; break;
 		}
 		separacionHora=horaTotal.split(":");
 		hora = Integer.parseInt(separacionHora[0]);
@@ -369,12 +369,13 @@ public class ModeloInspectorImpl extends ModeloImpl implements ModeloInspector {
 		 *      
 		 *      Importante: Para acceder a la B.D. utilice la propiedad this.conexion (de clase Connection) 
 		 *      que se hereda al extender la clase ModeloImpl.      
-		 */
-		
+
+		*/
 		//Datos estáticos de prueba. Quitar y reemplazar por código que recupera los datos reales.
 		//
 		// 1) throw InspectorNoHabilitadoEnUbicacionException
 		//
+		/*
 		ArrayList<MultaPatenteDTO> multas = new ArrayList<MultaPatenteDTO>();
 		int nroMulta = 1;
 		
@@ -404,6 +405,145 @@ public class ModeloInspectorImpl extends ModeloImpl implements ModeloInspector {
 			}
 		}
 		// Fin datos prueba
-		return multas;		
+		return multas;*/
+
+		String consultaHora=" SELECT CURTIME();";
+		String consultaDia= null;
+		String consultaFecha = "SELECT CURDATE();";
+
+		String fecha = null;
+		String dia = null;
+		String horaTotal = null;
+		String[] separacionHora= new String[3];
+		String turno = null;
+
+		int hora= 0;
+		int diaBaseDeDatos = 0;
+
+		Statement stmtHora = null;
+		Statement stmtDia = null;
+		Statement stmtFecha = null;
+
+		ResultSet horaRes=null;
+		ResultSet diaRes=null;
+		ResultSet fechaRes=null;
+
+		try {
+			stmtHora = this.conexion.createStatement();
+			horaRes = stmtHora.executeQuery(consultaHora);
+			stmtFecha = this.conexion.createStatement();
+			fechaRes = stmtFecha.executeQuery(consultaFecha);
+
+			if (fechaRes.next()) {
+				fecha = fechaRes.getString("CURDATE()");
+			}
+			if (horaRes.next()) {
+				horaTotal = horaRes.getString("CURTIME()");
+			}
+
+			stmtDia = this.conexion.createStatement();
+			consultaDia = "SELECT DAYOFWEEK('"+fecha+"');";
+			diaRes = stmtDia.executeQuery(consultaDia);
+
+			if (diaRes.next()){
+				diaBaseDeDatos= diaRes.getInt("DAYOFWEEK('"+fecha+"')");
+			}
+
+			switch(diaBaseDeDatos){
+				case 1: dia="do"; break;
+
+				case 2: dia="lu"; break;
+
+				case 3: dia="ma"; break;
+
+				case 4: dia="mi"; break;
+
+				case 5: dia="ju"; break;
+
+				case 6: dia="vi"; break;
+
+				case 7: dia="sa"; break;
+			}
+			separacionHora=horaTotal.split(":");
+			hora = Integer.parseInt(separacionHora[0]);
+
+			if (hora>=8 && hora<=13){
+				turno="m";
+			} else{
+				if(hora>=14 && hora<=20){
+					turno="t";
+				}
+				else{
+					throw new InspectorNoHabilitadoEnUbicacionException();
+				}
+			}
+			stmtHora.close();
+			stmtDia.close();
+			stmtFecha.close();
+			horaRes.close();
+			diaRes.close();
+			fechaRes.close();
+
+		}catch (Exception e) {
+			logger.error(e.getMessage());
+			e.printStackTrace();
+		}
+
+
+		String sql="SELECT * FROM asociado_con WHERE legajo=? AND dia=? AND turno=? AND calle=? AND altura=?;";
+		PreparedStatement stmtInspector = null;
+		ResultSet autorizado=null;
+
+		try {
+			stmtInspector = this.conexion.prepareStatement(sql);
+			stmtInspector.setInt(1, inspectorLogueado.getLegajo());
+			stmtInspector.setString(2, dia);
+			stmtInspector.setString(3, turno);
+			stmtInspector.setString(4, ubicacion.getCalle());
+			stmtInspector.setInt(5, ubicacion.getAltura());
+			System.out.println(inspectorLogueado.getLegajo());
+			System.out.println(dia);
+			System.out.println(turno);
+			System.out.println(ubicacion.getCalle());
+			System.out.println(ubicacion.getAltura());
+			autorizado = stmtInspector.executeQuery();
+			if (!autorizado.next()){
+				throw new InspectorNoHabilitadoEnUbicacionException();
+			}
+			System.out.println("Paso inspector2");
+			stmtInspector.close();
+			autorizado.close();
+
+		}catch(SQLException e)
+		{
+			System.out.println("Mensaje: " + e.getMessage()); // Mensaje retornado por MySQL
+			System.out.println("Código: " + e.getErrorCode()); // Código de error de MySQL
+			System.out.println("SQLState: " + e.getSQLState()); // Código de error del SQL standart
+		}
+
+		ArrayList<MultaPatenteDTO> multas = new ArrayList<>();
+		int numeroMulta = 0;
+		try {
+			for (String patente : listaPatentes) {
+
+				EstacionamientoPatenteDTO estacionamiento = this.recuperarEstacionamiento(patente, ubicacion);
+				if (estacionamiento.getEstado() == EstacionamientoPatenteDTO.ESTADO_NO_REGISTRADO) {
+
+					MultaPatenteDTO multa = new MultaPatenteDTOImpl(String.valueOf(numeroMulta), patente, ubicacion.getCalle(), String.valueOf(ubicacion.getAltura()),
+							fecha,
+							horaTotal,
+							String.valueOf(inspectorLogueado.getLegajo()));
+					multas.add(multa);
+					numeroMulta++;
+				}
+			}
+		}
+		catch(Exception e){
+			logger.error(e.getMessage());
+			e.printStackTrace();
+		}
+		return multas;
+
+
 	}
 }

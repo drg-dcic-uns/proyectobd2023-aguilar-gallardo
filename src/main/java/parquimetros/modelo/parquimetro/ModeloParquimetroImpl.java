@@ -35,15 +35,16 @@ public class ModeloParquimetroImpl extends ModeloImpl implements ModeloParquimet
 		 *      Importante: Para acceder a la B.D. utilice la propiedad this.conexion (de clase Connection) 
 		 *      que se hereda al extender la clase ModeloImpl. 
 		 */
-		ArrayList<TarjetaBean> tarjetas = new ArrayList<TarjetaBean>();
+		ArrayList<TarjetaBean> tarjetas = new ArrayList<>();
 
 		// Datos estáticos de prueba. Quitar y reemplazar por código que recupera las ubicaciones de la B.D. en una lista de UbicacionesBean		 
-		DAOTarjetasDatosPrueba.poblar();
+		/*DAOTarjetasDatosPrueba.poblar();
 		
 		for (TarjetaBean ubicacion : DAOTarjetasDatosPrueba.datos.values()) {
 			tarjetas.add(ubicacion);	
-		}
+		}*/
 		// Fin datos estáticos de prueba.
+
 	
 		return tarjetas;
 	}
@@ -68,14 +69,23 @@ public class ModeloParquimetroImpl extends ModeloImpl implements ModeloParquimet
 		 */
 		ArrayList<UbicacionBean> ubicaciones = new ArrayList<UbicacionBean>();
 
-		// Datos estáticos de prueba. Quitar y reemplazar por código que recupera las ubicaciones de la B.D. en una lista de UbicacionesBean		 
+		/*// Datos estáticos de prueba. Quitar y reemplazar por código que recupera las ubicaciones de la B.D. en una lista de UbicacionesBean
 		DAOUbicacionesDatosPrueba.poblar();
 		
 		for (UbicacionBean ubicacion : DAOUbicacionesDatosPrueba.datos.values()) {
 			ubicaciones.add(ubicacion);	
-		}
+		}*/
 		// Fin datos estáticos de prueba.
-	
+
+
+		//Statement stmt = null;
+		//ResultSet res = null;
+		//String sql = "SELECT * FROM tipos_tarjeta";
+		//stmt = this.conexion.createStatement();
+		//res = stmt.executeQuery(sql);
+
+		//SEGUIR
+
 		return ubicaciones;
 	}
 
