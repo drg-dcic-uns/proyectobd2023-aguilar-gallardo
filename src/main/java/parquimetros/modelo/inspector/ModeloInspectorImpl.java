@@ -203,7 +203,7 @@ public class ModeloInspectorImpl extends ModeloImpl implements ModeloInspector {
 
 		if (hora>=8 && hora<=13){
 			turno="m";
-		} else if(hora>=14 && hora<=20){
+		} else if(hora>=14 && hora<=23){
 			turno="t";
 		}
 
@@ -302,38 +302,47 @@ public class ModeloInspectorImpl extends ModeloImpl implements ModeloInspector {
 		String fechaEntrada = null;
 		String horaEntrada = null;
 
-		String sql = "SELECT fecha_ent, hora_ent FROM estacionados WHERE patente=? AND calle=? AND altura=?;";
+		String sql = "SELECT fecha_ent, hora_ent FROM estacionados WHERE patente = ? AND calle = ? AND altura = ?;";
 		ResultSet rs = null;
 		PreparedStatement stmt = null;
-		SimpleDateFormat sdf = new SimpleDateFormat("yyyy/MM/dd");
-		DateTimeFormatter formatter = DateTimeFormatter.ISO_LOCAL_DATE_TIME;
+		SimpleDateFormat sdfFecha = new SimpleDateFormat("yyyy/MM/dd");
+		SimpleDateFormat sdfHora = new SimpleDateFormat("HH:mm:ss");
 
 		try
 		{
 			stmt = this.conexion.prepareStatement(sql);
 			stmt.setString(1, patente);
 			stmt.setString(2, ubicacion.getCalle());
-			stmt.setInt(2, ubicacion.getAltura());
-			rs = stmt.executeQuery(sql);
+			stmt.setInt(3, ubicacion.getAltura());
+			rs = stmt.executeQuery();
 			if (rs.next()){
 				estado = EstacionamientoPatenteDTO.ESTADO_REGISTRADO;
-				fechaEntrada = sdf.format(rs.getDate("fecha_ent"));
-				horaEntrada = formatter.format(rs.getTimestamp("hora_ent").toLocalDateTime());
+				fechaEntrada = sdfFecha.format(rs.getDate("fecha_ent"));
+				horaEntrada = sdfHora.format(rs.getTimestamp("hora_ent"));
 			}
 			else{
 				estado = EstacionamientoPatenteDTO.ESTADO_NO_REGISTRADO;
 				fechaEntrada = "";
 				horaEntrada = "";
 			}
+			retornar = new EstacionamientoPatenteDTOImpl(patente, ubicacion.getCalle(), String.valueOf(ubicacion.getAltura()), fechaEntrada, horaEntrada, estado);
 		}
 		catch (SQLException ex){
 			logger.error("SQLException: " + ex.getMessage());
 			logger.error("SQLState: " + ex.getSQLState());
 			logger.error("VendorError: " + ex.getErrorCode());
-		}
-
-		retornar = new EstacionamientoPatenteDTOImpl(patente, ubicacion.getCalle(), String.valueOf(ubicacion.getAltura()), fechaEntrada, horaEntrada, estado);
-		stmt.close();
+		} finally {
+			try {
+				if (rs != null) {
+					rs.close();
+				}
+				if (stmt != null) {
+					stmt.close();
+				}
+			} catch (SQLException e) {
+				logger.error("Error al cerrar la conexión: " + e.getMessage());
+				e.printStackTrace();
+			}}
 
 		return retornar;
 
