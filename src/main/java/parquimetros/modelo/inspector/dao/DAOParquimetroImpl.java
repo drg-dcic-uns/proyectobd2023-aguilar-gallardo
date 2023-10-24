@@ -8,10 +8,7 @@ import java.sql.SQLException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import parquimetros.modelo.beans.InspectorBean;
-import parquimetros.modelo.beans.InspectorBeanImpl;
-import parquimetros.modelo.beans.ParquimetroBean;
-import parquimetros.modelo.beans.UbicacionBean;
+import parquimetros.modelo.beans.*;
 import parquimetros.modelo.inspector.dao.datosprueba.DAOParquimetrosDatosPrueba;
 import parquimetros.modelo.inspector.dto.EstacionamientoPatenteDTO;
 
@@ -34,10 +31,7 @@ public class DAOParquimetroImpl implements DAOParquimetro {
 		 *      que se inicializa en el constructor.   
 		 */		
 
-		//Datos estáticos de prueba. Quitar y reemplazar por código que recupera los datos reales.
-		/*UbicacionBean ubicacion = DAOParquimetrosDatosPrueba.obtenerUbicacion(parquimetro.getId());
-		
-		return ubicacion;*/
+
 		String sql = "SELECT calle, altura FROM parquimetros WHERE id_parq = ?;";
 		ResultSet rs = null;
 		PreparedStatement stmt = null;
@@ -49,6 +43,7 @@ public class DAOParquimetroImpl implements DAOParquimetro {
 			rs = stmt.executeQuery();
 
 			if (rs.next()) {
+				retorno=new UbicacionBeanImpl();
 				retorno.setCalle(rs.getString("calle"));
 				retorno.setAltura(rs.getInt("altura"));
 			}
@@ -70,6 +65,9 @@ public class DAOParquimetroImpl implements DAOParquimetro {
 				e.printStackTrace();
 			}
 		}
+
+
+
 		return retorno;
 		
 	}

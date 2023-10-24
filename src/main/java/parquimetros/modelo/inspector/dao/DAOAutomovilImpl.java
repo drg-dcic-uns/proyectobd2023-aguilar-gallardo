@@ -35,23 +35,16 @@ public class DAOAutomovilImpl implements DAOAutomovil {
 
 		String sql = "SELECT patente FROM automoviles WHERE patente= ?;";
 		ResultSet rs = null;
-		PreparedStatement stmt = null;
-
-
-		stmt = this.conexion.prepareStatement(sql);
+		PreparedStatement stmt = this.conexion.prepareStatement(sql);
 		stmt.setString(1, patente);
 		rs = stmt.executeQuery();
+
 		if (!rs.next()) {
 			throw new AutomovilNoEncontradoException(Mensajes.getMessage("DAOAutomovilImpl.recuperarAutomovilPorPatente.AutomovilNoEncontradoException"));
 		}
 
-		if (rs != null) {
-			rs.close();
-		}
-		if (stmt != null) {
-			stmt.close();
-		}
-
+		rs.close();
+		stmt.close();
 
 	}
 

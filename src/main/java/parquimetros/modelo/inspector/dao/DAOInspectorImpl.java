@@ -8,6 +8,7 @@ import java.sql.ResultSet;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import parquimetros.modelo.beans.InspectorBean;
+import parquimetros.modelo.beans.InspectorBeanImpl;
 import parquimetros.modelo.inspector.exception.InspectorNoAutenticadoException;
 import parquimetros.utils.Mensajes;
 
@@ -45,6 +46,7 @@ public class DAOInspectorImpl implements DAOInspector {
 		stmt.setString(2, password);
 		rs = stmt.executeQuery();
 		if (rs.next()) {
+			retornar = new InspectorBeanImpl();
 			retornar.setLegajo(rs.getInt("legajo"));
 			retornar.setPassword(rs.getString("password"));
 			retornar.setApellido(rs.getString("apellido"));

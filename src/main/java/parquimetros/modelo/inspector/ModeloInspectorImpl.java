@@ -1,8 +1,6 @@
 package parquimetros.modelo.inspector;
 import java.text.SimpleDateFormat;
 import java.sql.*;
-import java.time.LocalDateTime;
-import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.Objects;
 
@@ -17,8 +15,6 @@ import parquimetros.modelo.inspector.dao.DAOInspector;
 import parquimetros.modelo.inspector.dao.DAOInspectorImpl;
 import parquimetros.modelo.inspector.dao.DAOAutomovil;
 import parquimetros.modelo.inspector.dao.DAOAutomovilImpl;
-import parquimetros.modelo.inspector.dao.datosprueba.DAOParquimetrosDatosPrueba;
-import parquimetros.modelo.inspector.dao.datosprueba.DAOUbicacionesDatosPrueba;
 import parquimetros.modelo.inspector.dto.EstacionamientoPatenteDTO;
 import parquimetros.modelo.inspector.dto.EstacionamientoPatenteDTOImpl;
 import parquimetros.modelo.inspector.dto.MultaPatenteDTO;
@@ -140,11 +136,13 @@ public class ModeloInspectorImpl extends ModeloImpl implements ModeloInspector {
 		String consultaFecha= "SELECT CURDATE();";
 		String consultaDia="";
 
-		String dia = null;
-		String horaTotal = null;
-		String fechaAcceso= null;
-		String[] separacionHora= new String[3];
-		String turno = null;
+		String dia = "";
+		String horaTotal = "";
+		String[] separacionHora;
+		String turno = "";
+
+
+		Date fechaAcceso = null;
 
 		int hora= 0;
 		int diaBaseDeDatos = 0;
@@ -170,15 +168,17 @@ public class ModeloInspectorImpl extends ModeloImpl implements ModeloInspector {
 			horaTotal = horaRes.getString("CURTIME()");
 		}
 		while (FechaRes.next()){
-			fechaAcceso=FechaRes.getString("CURDATE()");
+			fechaAcceso=FechaRes.getDate("CURDATE()");
 		}
 
 		consultaDia = "SELECT DAYOFWEEK(?);";
 		stmtDia = this.conexion.prepareStatement(consultaDia);
-		stmtDia.setString(1,fechaAcceso);
-		diaRes = stmtDia.executeQuery(consultaDia);
+		stmtDia.setDate(1,fechaAcceso);
+		diaRes = stmtDia.executeQuery();
+
 
 		while (diaRes.next()) {
+
 			diaBaseDeDatos = diaRes.getInt("DAYOFWEEK('"+fechaAcceso+"')");
 		}
 
@@ -198,8 +198,10 @@ public class ModeloInspectorImpl extends ModeloImpl implements ModeloInspector {
 
 			case 7: dia="sa"; break;
 		}
+
 		separacionHora=horaTotal.split(":");
 		hora = Integer.parseInt(separacionHora[0]);
+
 
 		if (hora>=8 && hora<=13){
 			turno="m";
@@ -208,7 +210,7 @@ public class ModeloInspectorImpl extends ModeloImpl implements ModeloInspector {
 		}
 
 
-		String sql="SELECT calle,altura FROM asociado_con WHERE legajo= ? AND dia=? AND turno=?;";
+		String sql="SELECT calle,altura FROM asociado_con WHERE legajo=? AND dia=? AND turno=?;";
 
 
 
@@ -222,10 +224,10 @@ public class ModeloInspectorImpl extends ModeloImpl implements ModeloInspector {
 
 		while (autorizado.next() && !autorizadoEnParquimetro) {
 			if (autorizado.getString("calle").equals(parquimetro.getUbicacion().getCalle()) && autorizado.getInt("altura") == parquimetro.getUbicacion().getAltura()) {
-				String sql2 = "INSERT INTO accede (fecha, hora, id_parq, legajo) VALUES (?,?, ?, ?);" ;
+				String sql2 = "INSERT INTO accede (fecha, hora, id_parq, legajo) VALUES (?,?,?,?);" ;
 				PreparedStatement stmt = this.conexion.prepareStatement(sql2);
-				stmt.setString(1, fechaAcceso);
-				stmt.setString(2, turno);
+				stmt.setDate(1, fechaAcceso);
+				stmt.setString(2, horaTotal);
 				stmt.setInt(3, parquimetro.getId());
 				stmt.setInt(4, inspectorLogueado.getLegajo());
 				stmt.executeUpdate();
@@ -238,6 +240,15 @@ public class ModeloInspectorImpl extends ModeloImpl implements ModeloInspector {
 		if(!autorizadoEnParquimetro){
 			throw new ConexionParquimetroException("Inspector no autorizado en la ubicación del parquímetro");
 		}
+
+		autorizado.close();
+		stmtAutorizado.close();
+		horaRes.close();
+		FechaRes.close();
+		diaRes.close();
+		stmtHora.close();
+		stmtFecha.close();
+		stmtDia.close();
 
 	}
 
@@ -334,10 +345,10 @@ public class ModeloInspectorImpl extends ModeloImpl implements ModeloInspector {
 		String consultaDia= null;
 		String consultaFecha = "SELECT CURDATE();";
 
-		String fecha = null;
-		String dia = null;
-		String horaTotal = null;
-		String[] separacionHora= new String[3];
+		Date fecha = null;
+		String dia = "";
+		String horaTotal = "";
+		String[] separacionHora;
 		String turno = null;
 
 		int hora= 0;
@@ -358,7 +369,7 @@ public class ModeloInspectorImpl extends ModeloImpl implements ModeloInspector {
 		fechaRes = stmtFecha.executeQuery(consultaFecha);
 
 		if (fechaRes.next()) {
-			fecha = fechaRes.getString("CURDATE()");
+			fecha = fechaRes.getDate("CURDATE()");
 		}
 		if (horaRes.next()) {
 			horaTotal = horaRes.getString("CURTIME()");
@@ -400,12 +411,6 @@ public class ModeloInspectorImpl extends ModeloImpl implements ModeloInspector {
 				throw new InspectorNoHabilitadoEnUbicacionException();
 			}
 		}
-		stmtHora.close();
-		stmtDia.close();
-		stmtFecha.close();
-		horaRes.close();
-		diaRes.close();
-		fechaRes.close();
 
 		String sql="SELECT * FROM asociado_con WHERE legajo=? AND dia=? AND turno=? AND calle=? AND altura=?;";
 		PreparedStatement stmtInspector = null;
@@ -418,53 +423,81 @@ public class ModeloInspectorImpl extends ModeloImpl implements ModeloInspector {
 		stmtInspector.setString(4, ubicacion.getCalle());
 		stmtInspector.setInt(5, ubicacion.getAltura());
 		autorizado = stmtInspector.executeQuery();
+
 		if (!autorizado.next()){
 			throw new InspectorNoHabilitadoEnUbicacionException();
 		}
+
+		stmtDia.close();
+		stmtHora.close();
+		stmtFecha.close();
 		stmtInspector.close();
 		autorizado.close();
+		horaRes.close();
+		diaRes.close();
+		fechaRes.close();
 
+		int idAsociado = 0;
 
+		String idAsociadoCon = "SELECT id_asociado_con FROM asociado_con WHERE legajo=? AND dia=? AND turno=? AND calle=? AND altura=?;";
+		PreparedStatement stmtIdAsociadoCon = this.conexion.prepareStatement(idAsociadoCon);
+		stmtIdAsociadoCon.setInt(1, inspectorLogueado.getLegajo());
+		stmtIdAsociadoCon.setString(2, dia);
+		stmtIdAsociadoCon.setString(3, turno);
+		stmtIdAsociadoCon.setString(4, ubicacion.getCalle());
+		stmtIdAsociadoCon.setInt(5, ubicacion.getAltura());
+
+		ResultSet rsIdAsociadoCon = stmtIdAsociadoCon.executeQuery();
+
+		if (rsIdAsociadoCon.next()) {
+			idAsociado = rsIdAsociadoCon.getInt("id_asociado_con");
+		}
+
+		rsIdAsociadoCon.close();
+		stmtIdAsociadoCon.close();
 
 		ArrayList<MultaPatenteDTO> multas = new ArrayList<>();
-		int numeroMulta = 0;
-		for (String patente : listaPatentes) {
-				EstacionamientoPatenteDTO estacionamiento = this.recuperarEstacionamiento(patente, ubicacion);
-				if (estacionamiento.getEstado() == EstacionamientoPatenteDTO.ESTADO_NO_REGISTRADO) {
 
+		for (String patente : listaPatentes) {
+				EstacionamientoPatenteDTO estacionamiento = recuperarEstacionamiento(patente, ubicacion);
+				if (Objects.equals(estacionamiento.getEstado(), EstacionamientoPatenteDTO.ESTADO_NO_REGISTRADO)) {
+					logger.info("Intento verificar la patenten en la base de datos");
 					try {
 						verificarPatente(patente);
 					}catch(AutomovilNoEncontradoException e){
 						System.out.println(Mensajes.getMessage("DAOAutomovilImpl.recuperarAutomovilPorPatente.AutomovilNoEncontradoException"));
 					}
 
-
-
-					MultaPatenteDTO multa = new MultaPatenteDTOImpl(String.valueOf(numeroMulta), patente, ubicacion.getCalle(), String.valueOf(ubicacion.getAltura()),
-							fecha,
-							horaTotal,
-							String.valueOf(inspectorLogueado.getLegajo()));
-					multas.add(multa);
-					String ingresarMulta="INSERT INTO multas(numeroMulta,fecha,hora,id_asociado_con,patente) VALUES (?,?,?,?,?)";
-					stmtMulta= this.conexion.prepareStatement(ingresarMulta);
-					stmtMulta.setInt(1,0);
-					stmtMulta.setString(2,fecha);
-					stmtMulta.setString(3,horaTotal);
-					stmtMulta.setInt(4,inspectorLogueado.getLegajo());
-					stmtMulta.setString(5,patente);
+					String ingresarMulta = "INSERT INTO multa VALUES (?,?,?,?,?);";
+					stmtMulta = this.conexion.prepareStatement(ingresarMulta);
+					stmtMulta.setInt(1, 0);
+					stmtMulta.setDate(2, fecha);
+					stmtMulta.setString(3, horaTotal);
+					stmtMulta.setInt(4,idAsociado );
+					stmtMulta.setString(5, patente);
 					stmtMulta.executeUpdate();
 
+					stmtMulta.close();
 
+
+					String recuperarMulta = "SELECT * FROM multa WHERE patente=? AND fecha=? AND hora=? AND id_asociado_con=?;";
+					PreparedStatement stmtRecuperarMulta = this.conexion.prepareStatement(recuperarMulta);
+					stmtRecuperarMulta.setString(1, patente);
+					stmtRecuperarMulta.setDate(2, fecha);
+					stmtRecuperarMulta.setString(3, horaTotal);
+					stmtRecuperarMulta.setInt(4, idAsociado);
+					ResultSet rs = stmtRecuperarMulta.executeQuery();
+					if (rs.next()) {
+						MultaPatenteDTO multa = new MultaPatenteDTOImpl(rs.getString("numero"), patente, ubicacion.getCalle(), String.valueOf(ubicacion.getAltura()),
+								rs.getDate("fecha").toString(), rs.getString("hora"),
+								String.valueOf(inspectorLogueado.getLegajo()));
+						multas.add(multa);
+					}
+					rs.close();
+					stmtRecuperarMulta.close();
 				}
 		}
-
 		return multas;
-
-
 	}
-
-
-
-
 
 }
