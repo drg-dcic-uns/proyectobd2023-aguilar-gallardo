@@ -32,22 +32,6 @@ public class DAOAutomovilImpl implements DAOAutomovil {
 		 *      Importante: Para acceder a la B.D. utilice la propiedad this.conexion (de clase Connection) 
 		 *      que se inicializa en el constructor.     
 		 */
-		//Datos estáticos de prueba. Quitar y reemplazar por código que recupera los datos reales.
-		//
-		// Diseño de datos de prueba: Las patentes que terminan en 
-		//  * 1 al 8 retorna exitosamente
-		//  * 9 produce una excepción de AutomovilNoEncontradoException
-		//  * 0 propaga la excepción recibida (produce una Exception)
- 		// 
-		/*
-		int ultimo = Integer.parseInt(patente.substring(patente.length()-1));
-		
-		if (ultimo == 0) {
-			throw new Exception("Hubo un error en la conexión.");
-		} else if (ultimo == 9) {
-			throw new AutomovilNoEncontradoException(Mensajes.getMessage("DAOAutomovilImpl.recuperarAutomovilPorPatente.AutomovilNoEncontradoException"));			
-		} 
-		// Fin datos estáticos de prueba.*/
 
 		String sql = "SELECT patente FROM automoviles WHERE patente= ?;";
 		ResultSet rs = null;

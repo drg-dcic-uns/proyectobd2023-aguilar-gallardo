@@ -63,22 +63,17 @@ public class ModeloInspectorImpl extends ModeloImpl implements ModeloInspector {
 		ArrayList<UbicacionBean> ubicaciones = new ArrayList<UbicacionBean>();
 
 		String sql= "SELECT calle,altura FROM parquimetros GROUP BY calle,altura ;";
-		conectar("inspector", "inspector");
-		ResultSet rs=null;
-
-		try {
-			rs = consulta(sql);
-			while(rs.next()){
-				UbicacionBean ubicacion= new UbicacionBeanImpl();
-				ubicacion.setCalle(rs.getString("calle"));
-				ubicacion.setAltura(Integer.parseInt(rs.getString("altura")));
-				ubicaciones.add(ubicacion);
-			}
-
-		}catch (NullPointerException e) {
-			System.out.println("Mensaje: " + e.getMessage()); // Mensaje retornado por MySQL
+		Statement stmt = this.conexion.createStatement();
+		ResultSet rs= stmt.executeQuery(sql);
+		while(rs.next()){
+			UbicacionBean ubicacion= new UbicacionBeanImpl();
+			ubicacion.setCalle(rs.getString("calle"));
+			ubicacion.setAltura(Integer.parseInt(rs.getString("altura")));
+			ubicaciones.add(ubicacion);
 		}
-	
+		rs.close();
+		stmt.close();
+
 		return ubicaciones;
 	}
 
@@ -98,22 +93,20 @@ public class ModeloInspectorImpl extends ModeloImpl implements ModeloInspector {
 
 		ArrayList<ParquimetroBean> parquimetros = new ArrayList<ParquimetroBean>();
 
-		String sql= "SELECT * FROM parquimetros WHERE calle = '" + ubicacion.getCalle() + "' AND altura = " + ubicacion.getAltura() + ";";
-		conectar("inspector", "inspector");
-		ResultSet rs=null;
-		try {
-			rs = consulta(sql);
-			while(rs.next()){
-				ParquimetroBean par=new ParquimetroBeanImpl();
-				par.setId(Integer.parseInt(rs.getString("id_parq")));
-				par.setUbicacion(ubicacion);
-				par.setNumero(Integer.parseInt(rs.getString("numero")));
-				parquimetros.add(par);
-			}
-
-		}catch (NullPointerException e) {
-			System.out.println("Mensaje: " + e.getMessage()); // Mensaje retornado por MySQL
+		String sql= "SELECT * FROM parquimetros WHERE calle =? AND altura =?;";
+		PreparedStatement stmt = this.conexion.prepareStatement(sql);
+		stmt.setString(1, ubicacion.getCalle());
+		stmt.setInt(2, ubicacion.getAltura());
+		ResultSet rs= stmt.executeQuery();
+		while(rs.next()){
+			ParquimetroBean parq= new ParquimetroBeanImpl();
+			parq.setId(rs.getInt("id_parq"));
+			parq.setNumero(rs.getInt("numero"));
+			parq.setUbicacion(ubicacion);
+			parquimetros.add(parq);
 		}
+		rs.close();
+		stmt.close();
 
 		return parquimetros;
 	}
@@ -308,41 +301,25 @@ public class ModeloInspectorImpl extends ModeloImpl implements ModeloInspector {
 		SimpleDateFormat sdfFecha = new SimpleDateFormat("yyyy/MM/dd");
 		SimpleDateFormat sdfHora = new SimpleDateFormat("HH:mm:ss");
 
-		try
-		{
-			stmt = this.conexion.prepareStatement(sql);
-			stmt.setString(1, patente);
-			stmt.setString(2, ubicacion.getCalle());
-			stmt.setInt(3, ubicacion.getAltura());
-			rs = stmt.executeQuery();
-			if (rs.next()){
-				estado = EstacionamientoPatenteDTO.ESTADO_REGISTRADO;
-				fechaEntrada = sdfFecha.format(rs.getDate("fecha_ent"));
-				horaEntrada = sdfHora.format(rs.getTimestamp("hora_ent"));
-			}
-			else{
-				estado = EstacionamientoPatenteDTO.ESTADO_NO_REGISTRADO;
-				fechaEntrada = "";
-				horaEntrada = "";
-			}
-			retornar = new EstacionamientoPatenteDTOImpl(patente, ubicacion.getCalle(), String.valueOf(ubicacion.getAltura()), fechaEntrada, horaEntrada, estado);
+		stmt = this.conexion.prepareStatement(sql);
+		stmt.setString(1, patente);
+		stmt.setString(2, ubicacion.getCalle());
+		stmt.setInt(3, ubicacion.getAltura());
+		rs = stmt.executeQuery();
+		if (rs.next()){
+			estado = EstacionamientoPatenteDTO.ESTADO_REGISTRADO;
+			fechaEntrada = sdfFecha.format(rs.getDate("fecha_ent"));
+			horaEntrada = sdfHora.format(rs.getTimestamp("hora_ent"));
 		}
-		catch (SQLException ex){
-			logger.error("SQLException: " + ex.getMessage());
-			logger.error("SQLState: " + ex.getSQLState());
-			logger.error("VendorError: " + ex.getErrorCode());
-		} finally {
-			try {
-				if (rs != null) {
-					rs.close();
-				}
-				if (stmt != null) {
-					stmt.close();
-				}
-			} catch (SQLException e) {
-				logger.error("Error al cerrar la conexión: " + e.getMessage());
-				e.printStackTrace();
-			}}
+		else{
+			estado = EstacionamientoPatenteDTO.ESTADO_NO_REGISTRADO;
+			fechaEntrada = "";
+			horaEntrada = "";
+		}
+		retornar = new EstacionamientoPatenteDTOImpl(patente, ubicacion.getCalle(), String.valueOf(ubicacion.getAltura()), fechaEntrada, horaEntrada, estado);
+
+		rs.close();
+		stmt.close();
 
 		return retornar;
 
@@ -371,42 +348,6 @@ public class ModeloInspectorImpl extends ModeloImpl implements ModeloInspector {
 		 *      que se hereda al extender la clase ModeloImpl.      
 
 		*/
-		//Datos estáticos de prueba. Quitar y reemplazar por código que recupera los datos reales.
-		//
-		// 1) throw InspectorNoHabilitadoEnUbicacionException
-		//
-		/*
-		ArrayList<MultaPatenteDTO> multas = new ArrayList<MultaPatenteDTO>();
-		int nroMulta = 1;
-		
-		LocalDateTime currentDateTime = LocalDateTime.now();
-        // Definir formatos para la fecha y la hora
-        DateTimeFormatter dateFormatter = DateTimeFormatter.ofPattern("dd-MM-yyyy");
-        DateTimeFormatter timeFormatter = DateTimeFormatter.ofPattern("HH:mm:ss");
-
-        // Formatear la fecha y la hora como cadenas separadas
-        String fechaMulta = currentDateTime.format(dateFormatter);
-        String horaMulta = currentDateTime.format(timeFormatter);
-		
-		for (String patente : listaPatentes) {
-			
-			EstacionamientoPatenteDTO estacionamiento = this.recuperarEstacionamiento(patente,ubicacion);
-			if (estacionamiento.getEstado() == EstacionamientoPatenteDTO.ESTADO_NO_REGISTRADO) {
-				
-				MultaPatenteDTO multa = new MultaPatenteDTOImpl(String.valueOf(nroMulta), 
-																patente, 
-																ubicacion.getCalle(), 
-																String.valueOf(ubicacion.getAltura()), 
-																fechaMulta, 
-																horaMulta, 
-																String.valueOf(inspectorLogueado.getLegajo()));
-				multas.add(multa);
-				nroMulta++;
-			}
-		}
-		// Fin datos prueba
-		return multas;*/
-
 		String consultaHora=" SELECT CURTIME();";
 		String consultaDia= null;
 		String consultaFecha = "SELECT CURDATE();";
@@ -428,106 +369,93 @@ public class ModeloInspectorImpl extends ModeloImpl implements ModeloInspector {
 		ResultSet diaRes=null;
 		ResultSet fechaRes=null;
 
-		try {
-			stmtHora = this.conexion.createStatement();
-			horaRes = stmtHora.executeQuery(consultaHora);
-			stmtFecha = this.conexion.createStatement();
-			fechaRes = stmtFecha.executeQuery(consultaFecha);
+		stmtHora = this.conexion.createStatement();
+		horaRes = stmtHora.executeQuery(consultaHora);
+		stmtFecha = this.conexion.createStatement();
+		fechaRes = stmtFecha.executeQuery(consultaFecha);
 
-			if (fechaRes.next()) {
-				fecha = fechaRes.getString("CURDATE()");
-			}
-			if (horaRes.next()) {
-				horaTotal = horaRes.getString("CURTIME()");
-			}
-
-			stmtDia = this.conexion.createStatement();
-			consultaDia = "SELECT DAYOFWEEK('"+fecha+"');";
-			diaRes = stmtDia.executeQuery(consultaDia);
-
-			if (diaRes.next()){
-				diaBaseDeDatos= diaRes.getInt("DAYOFWEEK('"+fecha+"')");
-			}
-
-			switch(diaBaseDeDatos){
-				case 1: dia="do"; break;
-
-				case 2: dia="lu"; break;
-
-				case 3: dia="ma"; break;
-
-				case 4: dia="mi"; break;
-
-				case 5: dia="ju"; break;
-
-				case 6: dia="vi"; break;
-
-				case 7: dia="sa"; break;
-			}
-			separacionHora=horaTotal.split(":");
-			hora = Integer.parseInt(separacionHora[0]);
-
-			if (hora>=8 && hora<=13){
-				turno="m";
-			} else{
-				if(hora>=14 && hora<=20){
-					turno="t";
-				}
-				else{
-					throw new InspectorNoHabilitadoEnUbicacionException();
-				}
-			}
-			stmtHora.close();
-			stmtDia.close();
-			stmtFecha.close();
-			horaRes.close();
-			diaRes.close();
-			fechaRes.close();
-
-		}catch (Exception e) {
-			logger.error(e.getMessage());
-			e.printStackTrace();
+		if (fechaRes.next()) {
+			fecha = fechaRes.getString("CURDATE()");
+		}
+		if (horaRes.next()) {
+			horaTotal = horaRes.getString("CURTIME()");
 		}
 
+		stmtDia = this.conexion.createStatement();
+		consultaDia = "SELECT DAYOFWEEK('"+fecha+"');";
+		diaRes = stmtDia.executeQuery(consultaDia);
+
+		if (diaRes.next()){
+			diaBaseDeDatos= diaRes.getInt("DAYOFWEEK('"+fecha+"')");
+		}
+
+		switch(diaBaseDeDatos){
+			case 1: dia="do"; break;
+
+			case 2: dia="lu"; break;
+
+			case 3: dia="ma"; break;
+
+			case 4: dia="mi"; break;
+
+			case 5: dia="ju"; break;
+
+			case 6: dia="vi"; break;
+
+			case 7: dia="sa"; break;
+		}
+		separacionHora=horaTotal.split(":");
+		hora = Integer.parseInt(separacionHora[0]);
+
+		if (hora>=8 && hora<=13){
+			turno="m";
+		} else{
+			if(hora>=14 && hora<=20){
+				turno="t";
+			}
+			else{
+				throw new InspectorNoHabilitadoEnUbicacionException();
+			}
+		}
+		stmtHora.close();
+		stmtDia.close();
+		stmtFecha.close();
+		horaRes.close();
+		diaRes.close();
+		fechaRes.close();
 
 		String sql="SELECT * FROM asociado_con WHERE legajo=? AND dia=? AND turno=? AND calle=? AND altura=?;";
 		PreparedStatement stmtInspector = null;
 		ResultSet autorizado=null;
 
-		try {
-			stmtInspector = this.conexion.prepareStatement(sql);
-			stmtInspector.setInt(1, inspectorLogueado.getLegajo());
-			stmtInspector.setString(2, dia);
-			stmtInspector.setString(3, turno);
-			stmtInspector.setString(4, ubicacion.getCalle());
-			stmtInspector.setInt(5, ubicacion.getAltura());
-			System.out.println(inspectorLogueado.getLegajo());
-			System.out.println(dia);
-			System.out.println(turno);
-			System.out.println(ubicacion.getCalle());
-			System.out.println(ubicacion.getAltura());
-			autorizado = stmtInspector.executeQuery();
-			if (!autorizado.next()){
-				throw new InspectorNoHabilitadoEnUbicacionException();
-			}
-			System.out.println("Paso inspector2");
-			stmtInspector.close();
-			autorizado.close();
-
-		}catch(SQLException e)
-		{
-			System.out.println("Mensaje: " + e.getMessage()); // Mensaje retornado por MySQL
-			System.out.println("Código: " + e.getErrorCode()); // Código de error de MySQL
-			System.out.println("SQLState: " + e.getSQLState()); // Código de error del SQL standart
+		stmtInspector = this.conexion.prepareStatement(sql);
+		stmtInspector.setInt(1, inspectorLogueado.getLegajo());
+		stmtInspector.setString(2, dia);
+		stmtInspector.setString(3, turno);
+		stmtInspector.setString(4, ubicacion.getCalle());
+		stmtInspector.setInt(5, ubicacion.getAltura());
+		autorizado = stmtInspector.executeQuery();
+		if (!autorizado.next()){
+			throw new InspectorNoHabilitadoEnUbicacionException();
 		}
+		stmtInspector.close();
+		autorizado.close();
+
+
 
 		ArrayList<MultaPatenteDTO> multas = new ArrayList<>();
 		int numeroMulta = 0;
-		try {
-			for (String patente : listaPatentes) {
-
+		for (String patente : listaPatentes) {
 				EstacionamientoPatenteDTO estacionamiento = this.recuperarEstacionamiento(patente, ubicacion);
 				if (estacionamiento.getEstado() == EstacionamientoPatenteDTO.ESTADO_NO_REGISTRADO) {
+
+					try {
+						verificarPatente(patente);
+					}catch(AutomovilNoEncontradoException e){
+						System.out.println(Mensajes.getMessage("DAOAutomovilImpl.recuperarAutomovilPorPatente.AutomovilNoEncontradoException"));
+					}
+
+
 
 					MultaPatenteDTO multa = new MultaPatenteDTOImpl(String.valueOf(numeroMulta), patente, ubicacion.getCalle(), String.valueOf(ubicacion.getAltura()),
 							fecha,
@@ -536,12 +464,8 @@ public class ModeloInspectorImpl extends ModeloImpl implements ModeloInspector {
 					multas.add(multa);
 					numeroMulta++;
 				}
-			}
 		}
-		catch(Exception e){
-			logger.error(e.getMessage());
-			e.printStackTrace();
-		}
+
 		return multas;
 
 

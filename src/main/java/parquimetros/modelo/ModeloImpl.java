@@ -38,6 +38,12 @@ public class ModeloImpl implements Modelo {
 		*         la propiedad conexion y devolver el resultado en un ResulSet
 		*/
 
+		/*
+		NOTA: estos métodos no fueron usados ya que para ser efectivos debíamos mantener
+		el statement y el result set abiertos, lo cual generaría basura en nuestro programa.
+		Preferimos ir accediendo a la base de datos desde los distintos métodos según sea necesario.
+		 */
+
 		ResultSet rs= null;
 		try
 		{ 

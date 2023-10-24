@@ -4,6 +4,7 @@ import java.math.BigInteger;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.sql.Connection;
+import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 
@@ -13,8 +14,6 @@ import parquimetros.modelo.Modelo;
 import parquimetros.modelo.ModeloImpl;
 
 import parquimetros.modelo.beans.InspectorBean;
-import parquimetros.modelo.beans.InspectorBeanImpl;
-import parquimetros.modelo.inspector.ModeloInspectorImpl;
 import parquimetros.modelo.inspector.exception.InspectorNoAutenticadoException;
 import parquimetros.utils.Mensajes;
 
@@ -42,26 +41,29 @@ public class DAOInspectorImpl implements DAOInspector {
 		 *      que se inicializa en el constructor.      
 		 */
 
-		String sql= "SELECT legajo,password FROM inspectores WHERE legajo = " + legajo + " AND password = md5('" + password + "');";
-		Modelo modelo = new ModeloInspectorImpl();
-		modelo.conectar("inspector", "inspector");
+		String sql= "SELECT * FROM inspectores WHERE legajo =? AND password = md5(?);";
+		InspectorBean retornar = null;
+		PreparedStatement stmt = null;
 		ResultSet rs=null;
-		try {
-			rs = modelo.consulta(sql);
-			//rs= this.conexion.createStatement().executeQuery(sql);
-		} catch (Exception e) {
-			System.out.println("Mensaje: " + e.getMessage()); // Mensaje retornado por MySQL
+
+		stmt = this.conexion.prepareStatement(sql);
+		stmt.setString(1, legajo);
+		stmt.setString(2, password);
+		rs = stmt.executeQuery();
+		if (rs.next()) {
+			retornar.setLegajo(rs.getInt("legajo"));
+			retornar.setPassword(rs.getString("password"));
+			retornar.setApellido(rs.getString("apellido"));
+			retornar.setNombre(rs.getString("nombre"));
+			retornar.setDNI(rs.getInt("DNI"));
+
 		}
-
-		InspectorBean inspector=null;
-
-		while(rs.next()){
-				inspector= new InspectorBeanImpl();
-				inspector.setLegajo(Integer.parseInt(rs.getString("legajo")));
-				inspector.setPassword(rs.getString("password"));
+		else{
+			throw new InspectorNoAutenticadoException(Mensajes.getMessage("DAOAutomovilImpl.recuperarAutomovilPorPatente.AutomovilNoEncontradoException"));
 		}
-
-		return inspector;
+		rs.close();
+		stmt.close();
+		return retornar;
 	}
 
 
