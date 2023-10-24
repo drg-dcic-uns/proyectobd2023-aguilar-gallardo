@@ -1,18 +1,12 @@
 package parquimetros.modelo.inspector.dao;
 
-import java.math.BigInteger;
-import java.security.MessageDigest;
-import java.security.NoSuchAlgorithmException;
+
 import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
-import java.sql.SQLException;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import parquimetros.modelo.Modelo;
-import parquimetros.modelo.ModeloImpl;
-
 import parquimetros.modelo.beans.InspectorBean;
 import parquimetros.modelo.inspector.exception.InspectorNoAutenticadoException;
 import parquimetros.utils.Mensajes;
@@ -65,10 +59,4 @@ public class DAOInspectorImpl implements DAOInspector {
 		stmt.close();
 		return retornar;
 	}
-
-
-
-
-
-
 }

@@ -37,31 +37,22 @@ public class DAOAutomovilImpl implements DAOAutomovil {
 		ResultSet rs = null;
 		PreparedStatement stmt = null;
 
-		try
-		{
-			stmt = this.conexion.prepareStatement(sql);
-			stmt.setString(1, patente);
-			rs = stmt.executeQuery();
-			if (!rs.next()) {
-				throw new AutomovilNoEncontradoException(Mensajes.getMessage("DAOAutomovilImpl.recuperarAutomovilPorPatente.AutomovilNoEncontradoException"));
-			}
+
+		stmt = this.conexion.prepareStatement(sql);
+		stmt.setString(1, patente);
+		rs = stmt.executeQuery();
+		if (!rs.next()) {
+			throw new AutomovilNoEncontradoException(Mensajes.getMessage("DAOAutomovilImpl.recuperarAutomovilPorPatente.AutomovilNoEncontradoException"));
 		}
-		catch (Exception e){
-			logger.error(e.getMessage());
-			e.printStackTrace();
-		} finally {
-			try {
-				if (rs != null) {
-					rs.close();
-				}
-				if (stmt != null) {
-					stmt.close();
-				}
-			} catch (SQLException e) {
-				logger.error("Error al cerrar la conexión: " + e.getMessage());
-				e.printStackTrace();
-			}
+
+		if (rs != null) {
+			rs.close();
 		}
+		if (stmt != null) {
+			stmt.close();
+		}
+
+
 	}
 
 }

@@ -135,7 +135,7 @@ public class ModeloInspectorImpl extends ModeloImpl implements ModeloInspector {
 		 * @throws Exception
 		 */
 
-		//conectar("inspector", "inspector");
+
 		String consultaHora=" SELECT CURTIME();";
 		String consultaFecha= "SELECT CURDATE();";
 		String consultaDia="";
@@ -154,28 +154,35 @@ public class ModeloInspectorImpl extends ModeloImpl implements ModeloInspector {
 		ResultSet diaRes=null;
 		ResultSet autorizado=null;
 
-		try {
-			FechaRes = consulta(consultaFecha);
-			horaRes = consulta(consultaHora);
+		Statement stmtHora,stmtFecha;
+		PreparedStatement stmtAutorizado,stmtDia;
 
-			while (horaRes.next()) {
-				horaTotal = horaRes.getString("CURTIME()");
-			}
-			while (FechaRes.next()){
-				fechaAcceso=FechaRes.getString("CURDATE()");
-			}
-			consultaDia="SELECT DAYOFWEEK('"+fechaAcceso+"');";
-			diaRes = consulta(consultaDia);
 
-			while (diaRes.next()) {
-				diaBaseDeDatos = diaRes.getInt("DAYOFWEEK('"+fechaAcceso+"')");
-			}
 
-		}catch (SQLException e) {
-			System.out.println("Mensaje: " + e.getMessage()); // Mensaje retornado por MySQL
-			System.out.println("Código: " + e.getErrorCode()); // Código de error de MySQL
-			System.out.println("SQLState: " + e.getSQLState()); // Código de error del SQL standart
+
+
+		stmtHora = this.conexion.createStatement();
+		horaRes = stmtHora.executeQuery(consultaHora);
+		stmtFecha = this.conexion.createStatement();
+		FechaRes = stmtFecha.executeQuery(consultaFecha);
+
+		while (horaRes.next()) {
+			horaTotal = horaRes.getString("CURTIME()");
 		}
+		while (FechaRes.next()){
+			fechaAcceso=FechaRes.getString("CURDATE()");
+		}
+
+		consultaDia = "SELECT DAYOFWEEK(?);";
+		stmtDia = this.conexion.prepareStatement(consultaDia);
+		stmtDia.setString(1,fechaAcceso);
+		diaRes = stmtDia.executeQuery(consultaDia);
+
+		while (diaRes.next()) {
+			diaBaseDeDatos = diaRes.getInt("DAYOFWEEK('"+fechaAcceso+"')");
+		}
+
+
 		switch(diaBaseDeDatos){
 			case 1: dia="do"; break;
 
@@ -200,24 +207,32 @@ public class ModeloInspectorImpl extends ModeloImpl implements ModeloInspector {
 			turno="t";
 		}
 
-		String sql="SELECT calle,altura FROM asociado_con WHERE legajo="+inspectorLogueado.getLegajo()+" AND dia='"+dia+"' AND turno='"+turno+"';";
+
+		String sql="SELECT calle,altura FROM asociado_con WHERE legajo= ? AND dia=? AND turno=?;";
+
+
 
 		boolean autorizadoEnParquimetro = false;
-		try {
-			autorizado = consulta(sql);
-			while (autorizado.next() && !autorizadoEnParquimetro) {
-				if (autorizado.getString("calle").equals(parquimetro.getUbicacion().getCalle()) && autorizado.getInt("altura") == parquimetro.getUbicacion().getAltura()) {
-					String sql2 = "INSERT INTO accede (fecha, hora, id_parq, legajo) VALUES ('" + fechaAcceso + "','" + horaTotal + "'," + parquimetro.getId()+ "," +inspectorLogueado.getLegajo() + ");" ;
-					actualizacion(sql2);
-					autorizadoEnParquimetro = true;
-				}
+
+		stmtAutorizado= this.conexion.prepareStatement(sql);
+		stmtAutorizado.setInt(1,inspectorLogueado.getLegajo());
+		stmtAutorizado.setString(2,dia);
+		stmtAutorizado.setString(3,turno);
+		autorizado = stmtAutorizado.executeQuery();
+
+		while (autorizado.next() && !autorizadoEnParquimetro) {
+			if (autorizado.getString("calle").equals(parquimetro.getUbicacion().getCalle()) && autorizado.getInt("altura") == parquimetro.getUbicacion().getAltura()) {
+				String sql2 = "INSERT INTO accede (fecha, hora, id_parq, legajo) VALUES (?,?, ?, ?);" ;
+				PreparedStatement stmt = this.conexion.prepareStatement(sql2);
+				stmt.setString(1, fechaAcceso);
+				stmt.setString(2, turno);
+				stmt.setInt(3, parquimetro.getId());
+				stmt.setInt(4, inspectorLogueado.getLegajo());
+				stmt.executeUpdate();
+				autorizadoEnParquimetro = true;
 			}
-		}catch(SQLException e)
-		{
-			System.out.println("Mensaje: " + e.getMessage()); // Mensaje retornado por MySQL
-			System.out.println("Código: " + e.getErrorCode()); // Código de error de MySQL
-			System.out.println("SQLState: " + e.getSQLState()); // Código de error del SQL standart
 		}
+
 
 
 		if(!autorizadoEnParquimetro){
@@ -256,39 +271,6 @@ public class ModeloInspectorImpl extends ModeloImpl implements ModeloInspector {
 		 *      Importante: Para acceder a la B.D. utilice la propiedad this.conexion (de clase Connection) 
 		 *      que se hereda al extender la clase ModeloImpl.
 		 */
-		//
-		// Datos estáticos de prueba. Quitar y reemplazar por código que recupera los datos reale de la BD.
-		//
-		// Diseño de datos de prueba: Las patentes que terminan en 1 al 8 fueron verificados como existentes en la tabla automovil,
-		//                            las terminadas en 9 y 0 produjeron una excepción de AutomovilNoEncontradoException y Exception.
-		//                            entonces solo consideramos los casos terminados de 1 a 8
- 		// 
-		// Utilizaremos el criterio que si es par el último digito de patente entonces está registrado correctamente el estacionamiento.
-		//
-		/*
-		String fechaEntrada, horaEntrada, estado;
-		
-		if (Integer.parseInt(patente.substring(patente.length()-1)) % 2 == 0) {
-			estado = EstacionamientoPatenteDTO.ESTADO_REGISTRADO;
-
-			LocalDateTime currentDateTime = LocalDateTime.now();
-	        // Definir formatos para la fecha y la hora
-	        DateTimeFormatter dateFormatter = DateTimeFormatter.ofPattern("dd-MM-yyyy");
-	        DateTimeFormatter timeFormatter = DateTimeFormatter.ofPattern("HH:mm:ss");
-
-	        // Formatear la fecha y la hora como cadenas separadas
-	        fechaEntrada = currentDateTime.format(dateFormatter);
-	        horaEntrada = currentDateTime.format(timeFormatter);
-			
-		} else {
-			estado = EstacionamientoPatenteDTO.ESTADO_NO_REGISTRADO;
-	        fechaEntrada = "";
-	        horaEntrada = "";
-		}
-
-		return new EstacionamientoPatenteDTOImpl(patente, ubicacion.getCalle(), String.valueOf(ubicacion.getAltura()), fechaEntrada, horaEntrada, estado);
-		// Fin de datos de prueba */
-
 
 		EstacionamientoPatenteDTO retornar = null;
 		String estado = null;
@@ -364,6 +346,7 @@ public class ModeloInspectorImpl extends ModeloImpl implements ModeloInspector {
 		Statement stmtHora = null;
 		Statement stmtDia = null;
 		Statement stmtFecha = null;
+		PreparedStatement stmtMulta;
 
 		ResultSet horaRes=null;
 		ResultSet diaRes=null;
@@ -462,7 +445,16 @@ public class ModeloInspectorImpl extends ModeloImpl implements ModeloInspector {
 							horaTotal,
 							String.valueOf(inspectorLogueado.getLegajo()));
 					multas.add(multa);
-					numeroMulta++;
+					String ingresarMulta="INSERT INTO multas(numeroMulta,fecha,hora,id_asociado_con,patente) VALUES (?,?,?,?,?)";
+					stmtMulta= this.conexion.prepareStatement(ingresarMulta);
+					stmtMulta.setInt(1,0);
+					stmtMulta.setString(2,fecha);
+					stmtMulta.setString(3,horaTotal);
+					stmtMulta.setInt(4,inspectorLogueado.getLegajo());
+					stmtMulta.setString(5,patente);
+					stmtMulta.executeUpdate();
+
+
 				}
 		}
 
@@ -470,4 +462,9 @@ public class ModeloInspectorImpl extends ModeloImpl implements ModeloInspector {
 
 
 	}
+
+
+
+
+
 }
