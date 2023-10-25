@@ -205,10 +205,12 @@ public class ModeloInspectorImpl extends ModeloImpl implements ModeloInspector {
 
 		if (hora>=8 && hora<=13){
 			turno="m";
-		} else if(hora>=14 && hora<=23){
+		} else if(hora>=14 && hora<=20){
 			turno="t";
 		}
-
+		/*si el horario esta fuera de rango, el turno quedará establecido en null
+		y la consulta sobre asociado con no nos devolverá un result set con contenido
+		por lo tanto se lanza excepcion de ConexionParquimetro  */
 
 		String sql="SELECT calle,altura FROM asociado_con WHERE legajo=? AND dia=? AND turno=?;";
 
@@ -353,6 +355,7 @@ public class ModeloInspectorImpl extends ModeloImpl implements ModeloInspector {
 
 		int hora= 0;
 		int diaBaseDeDatos = 0;
+		int idAsociado = 0;
 
 		Statement stmtHora = null;
 		Statement stmtDia = null;
@@ -407,10 +410,11 @@ public class ModeloInspectorImpl extends ModeloImpl implements ModeloInspector {
 			if(hora>=14 && hora<=20){
 				turno="t";
 			}
-			else{
-				throw new InspectorNoHabilitadoEnUbicacionException();
-			}
 		}
+
+		/*si el horario esta fuera de rango, el turno quedará establecido en null
+		y la consulta sobre asociado con no nos devolverá un result set con contenido
+		por lo tanto se lanza excepcion de InspectorNoHabilitado  */
 
 		String sql="SELECT * FROM asociado_con WHERE legajo=? AND dia=? AND turno=? AND calle=? AND altura=?;";
 		PreparedStatement stmtInspector = null;
@@ -428,6 +432,8 @@ public class ModeloInspectorImpl extends ModeloImpl implements ModeloInspector {
 			throw new InspectorNoHabilitadoEnUbicacionException();
 		}
 
+		idAsociado = autorizado.getInt("id_asociado_con");
+
 		stmtDia.close();
 		stmtHora.close();
 		stmtFecha.close();
@@ -437,24 +443,6 @@ public class ModeloInspectorImpl extends ModeloImpl implements ModeloInspector {
 		diaRes.close();
 		fechaRes.close();
 
-		int idAsociado = 0;
-
-		String idAsociadoCon = "SELECT id_asociado_con FROM asociado_con WHERE legajo=? AND dia=? AND turno=? AND calle=? AND altura=?;";
-		PreparedStatement stmtIdAsociadoCon = this.conexion.prepareStatement(idAsociadoCon);
-		stmtIdAsociadoCon.setInt(1, inspectorLogueado.getLegajo());
-		stmtIdAsociadoCon.setString(2, dia);
-		stmtIdAsociadoCon.setString(3, turno);
-		stmtIdAsociadoCon.setString(4, ubicacion.getCalle());
-		stmtIdAsociadoCon.setInt(5, ubicacion.getAltura());
-
-		ResultSet rsIdAsociadoCon = stmtIdAsociadoCon.executeQuery();
-
-		if (rsIdAsociadoCon.next()) {
-			idAsociado = rsIdAsociadoCon.getInt("id_asociado_con");
-		}
-
-		rsIdAsociadoCon.close();
-		stmtIdAsociadoCon.close();
 
 		ArrayList<MultaPatenteDTO> multas = new ArrayList<>();
 
@@ -479,7 +467,7 @@ public class ModeloInspectorImpl extends ModeloImpl implements ModeloInspector {
 
 					stmtMulta.close();
 
-
+					//HACEMOS SELECT DE LA MULTA NUEVAMENTE PARA RECUPERAR EL VALOR DE AUTOINCREMENT PUESTO
 					String recuperarMulta = "SELECT * FROM multa WHERE patente=? AND fecha=? AND hora=? AND id_asociado_con=?;";
 					PreparedStatement stmtRecuperarMulta = this.conexion.prepareStatement(recuperarMulta);
 					stmtRecuperarMulta.setString(1, patente);
