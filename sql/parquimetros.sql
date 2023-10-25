@@ -230,6 +230,7 @@ WHERE
     CREATE USER 'inspector'@'%' IDENTIFIED BY 'inspector';
 
     GRANT SELECT ON parquimetros.inspectores TO 'inspector'@'%';
+    GRANT SELECT ON parquimetros.multa TO 'inspector'@'%';          #le agregamos este permiso para que pueda sacar el numero de multa puesto automatico en el método registrar multa
     GRANT SELECT(patente) ON parquimetros.automoviles TO 'inspector'@'%';
     GRANT SELECT ON parquimetros.estacionados TO 'inspector'@'%';
     GRANT SELECT ON parquimetros.parquimetros TO 'inspector'@'%';
