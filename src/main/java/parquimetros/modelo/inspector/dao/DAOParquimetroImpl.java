@@ -37,35 +37,21 @@ public class DAOParquimetroImpl implements DAOParquimetro {
 		PreparedStatement stmt = null;
 		UbicacionBean retorno = null;
 
-		try {
-			stmt = this.conexion.prepareStatement(sql);
-			stmt.setInt(1, parquimetro.getId());
-			rs = stmt.executeQuery();
+		stmt = this.conexion.prepareStatement(sql);
+		stmt.setInt(1, parquimetro.getId());
+		rs = stmt.executeQuery();
 
-			if (rs.next()) {
-				retorno=new UbicacionBeanImpl();
-				retorno.setCalle(rs.getString("calle"));
-				retorno.setAltura(rs.getInt("altura"));
-			}
-
+		if (rs.next()) {
+			retorno=new UbicacionBeanImpl();
+			retorno.setCalle(rs.getString("calle"));
+			retorno.setAltura(rs.getInt("altura"));
 		}
-		catch (Exception e){
-			logger.error(e.getMessage());
-			e.printStackTrace();
-		} finally {
-			try {
-				if (rs != null) {
-					rs.close();
-				}
-				if (stmt != null) {
-					stmt.close();
-				}
-			} catch (SQLException e) {
-				logger.error("Error al cerrar la conexión: " + e.getMessage());
-				e.printStackTrace();
-			}
+		if (rs != null) {
+			rs.close();
 		}
-
+		if (stmt != null) {
+			stmt.close();
+		}
 
 
 		return retorno;

@@ -123,20 +123,22 @@ public class ControladorLoginImpl implements ControladorLogin {
 		UsuarioBean usuario = this.modelo.obtenerUsuario(PARQUIMETRO);
 
 		if (usuario != null) {
-			
-			logger.debug(Mensajes.getMessage("ControladorLoginImpl.ingresarComoParquimetro.usuarioNotNull"),usuario.getUsername(), usuario.getPassword());
-			
 			ModeloParquimetro modeloParquimetro = new ModeloParquimetroImpl();
-			VentanaParquimetro ventanaParquimetro = new VentanaParquimetroImpl();
 
-			ControladorParquimetro controladorParquimetro = new ControladorParquimetroImpl(ventanaParquimetro, modeloParquimetro);
-						
-			logger.info(Mensajes.getMessage("ControladorLoginImpl.ingresarComoParquimetro.ejecutar"));
-			controladorParquimetro.ejecutar();
-						
-			logger.info(Mensajes.getMessage("ControladorLoginImpl.ingresarComoParquimetro.eliminarVentana"));					
-			this.ventana.eliminarVentana();
+			if (modeloParquimetro.conectar(usuario.getUsername(), usuario.getPassword())) {
+				logger.debug(Mensajes.getMessage("ControladorLoginImpl.ingresarComoParquimetro.usuarioNotNull"), usuario.getUsername(), usuario.getPassword());
 
+
+				VentanaParquimetro ventanaParquimetro = new VentanaParquimetroImpl();
+
+				ControladorParquimetro controladorParquimetro = new ControladorParquimetroImpl(ventanaParquimetro, modeloParquimetro);
+
+				logger.info(Mensajes.getMessage("ControladorLoginImpl.ingresarComoParquimetro.ejecutar"));
+				controladorParquimetro.ejecutar();
+
+				logger.info(Mensajes.getMessage("ControladorLoginImpl.ingresarComoParquimetro.eliminarVentana"));
+				this.ventana.eliminarVentana();
+			}
 		} else {
 			
 			logger.error(Mensajes.getMessage("ControladorLoginImpl.ingresarComoParquimetro.errorObtenerUsuarioLogger"), PARQUIMETRO);

@@ -1,6 +1,7 @@
 package parquimetros.modelo.parquimetro;
 
 import java.sql.ResultSet;
+import java.sql.SQLException;
 import java.sql.Statement;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
@@ -49,9 +50,7 @@ public class ModeloParquimetroImpl extends ModeloImpl implements ModeloParquimet
 		//el statement principal, que recupera las tarjetas
 		Statement stmt = null;
 		ResultSet res = null;
-		String sql = "SELECT * FROM tarjetas";
-		stmt = this.conexion.createStatement();
-		res = stmt.executeQuery(sql);
+		String sql = null;
 
 		//el statement que recupera el tipo de tarjeta (para guardar el tipoTarjetaBean dentro del BeanTarjeta)
 		Statement stmtTipo = null;
@@ -70,6 +69,10 @@ public class ModeloParquimetroImpl extends ModeloImpl implements ModeloParquimet
 		ResultSet resConductor = null;
 		String sqlConductor = null;
 		ConductorBean conductor = null;
+
+		sql = "SELECT * FROM tarjetas";
+		stmt = this.conexion.createStatement();
+		res = stmt.executeQuery(sql);
 
 		while(res.next()) {
 			TarjetaBean tarjeta = new TarjetaBeanImpl();
@@ -118,6 +121,25 @@ public class ModeloParquimetroImpl extends ModeloImpl implements ModeloParquimet
 		}
 		System.out.println("se recuperaron bien las tarjetas");
 
+		if (res != null) {
+			res.close();
+		}
+		if (stmt != null) {
+			stmt.close();
+		}
+		if (resTipo != null) {
+			resTipo.close();
+		}
+		if (stmtTipo != null) {
+			stmtTipo.close();
+		}
+		if (resAutomovil != null) {
+			resAutomovil.close();
+		}
+		if (stmtAutomovil != null) {
+			stmtAutomovil.close();
+		}
+
 		return retorno;
 	}
 	
@@ -165,6 +187,14 @@ public class ModeloParquimetroImpl extends ModeloImpl implements ModeloParquimet
 		}
 
 		System.out.println("se recuperaron bien las ubicaciones");
+
+		if (res != null) {
+			res.close();
+		}
+		if (stmt != null) {
+			stmt.close();
+		}
+
 		return retorno;
 	}
 
@@ -202,6 +232,13 @@ public class ModeloParquimetroImpl extends ModeloImpl implements ModeloParquimet
 			parquimetro.setNumero(res.getInt("numero"));
 			parquimetro.setUbicacion(ubicacion);
 			parquimetros.add(parquimetro);
+		}
+
+		if(res != null){
+			res.close();
+		}
+		if(stmt != null){
+			stmt.close();
 		}
 	
 		return parquimetros;

@@ -208,6 +208,62 @@ FROM
 WHERE
     e.fecha_sal IS NULL AND e.hora_sal IS NULL;
 
+use parquimetros;
+delimiter ! # define “!” como delimitador
+create procedure conectar(IN IDtarjeta INTEGER , IN IDparq INTEGER)
+    begin
+        declare fecha_salida, fecha_entrada DATE;
+        declare hora_salida, hora_entrada TIME;
+        declare tipoOperacion VARCHAR(10);
+        declare tiempo DECIMAL(5,2);
+        declare tarifaParquimetro DECIMAL(5,2);
+        declare descuentoTarjeta DECIMAL(3,2);
+        declare saldoTarjeta DECIMAL(5,2);
+
+        SELECT fecha_sal, hora_sal, fecha_ent, hora_ent INTO fecha_salida, hora_salida, fecha_entrada, hora_entrada FROM estacionamientos WHERE id_tarjeta=IDtarjeta and id_parq=IDparq;
+    
+        SELECT saldo INTO saldoTarjeta FROM tarjetas WHERE id_tarjeta=IDtarjeta;
+
+        declare alturaUbicacion SMALLINT;
+        declare calleUbicacion VARCHAR(33);
+
+        SELECT calle, altura INTO calleUbicacion, alturaUbicacion FROM parquimetros WHERE id_parq=IDparq;
+        SELECT tarifa INTO tarifaParquimetro FROM ubicaciones WHERE calle=calleUbicacion and altura=alturaUbicacion;
+
+        declare tipoTarjeta VARCHAR(33);
+        SELECT tipo INTO tipoTarjeta FROM tarjetas WHERE id_tarjeta=IDtarjeta;
+        SELECT descuento INTO descuentoTarjeta FROM tipos_tarjeta WHERE tipo=tipoTarjeta;
+
+        if (fecha_entrada IS NOT NULL and hora_entrada IS NOT NULL fecha_sal IS NULL and hora_sal IS NULL) THEN
+            set tipoOperacion = "apertura";
+            declare fecha_actual DATE;
+            declare hora_actual TIME;
+
+            SELECT CURDATE() INTO fecha_actual;     #calculo la diferencia de minutos
+            SELECT CURTIME() INTO hora_actual;
+            declare diferenciaFechas, diferenciaHoras TIME;
+            SELECT TIMEDIFF(fecha_entrada, fecha_actual) INTO diferenciaFechas;
+            SELECT TIMEDIFF(fecha_entrada, fecha_actual) INTO diferenciaHoras;
+            set tiempo = (TIME_TO_SEC(diferenciaFechas) + TIME_TO_SEC(diferenciaHoras))/60;
+
+            set saldoTarjeta = saldoTarjeta−(tiempo∗tarifaParquimetro∗(1−descuentoTarjeta)),
+
+            update tarjetas # actualizo el saldo de la tarjeta
+            set saldo = saldoTarjeta
+            where id_tarjeta = IDtarjeta;
+
+            update estacionamientos # actualizo el saldo de la tarjeta
+            set  fecha_sal=fecha_actual, hora_sal=hora_actual
+            where id_tarjeta = IDtarjeta and id_parq=IDparq;
+
+            SELECT tipoOperacion as Tipo_Operacion, tiempo as Cantidad_Tiempo_Minutos, saldoTarjeta as Saldo_Actualizado, fecha_entrada as Fecha_Apertura, hora_entrada as Hora_Apertura, fecha_salida as Fecha_Cierre, hora_salida as Hora_Cierre;
+        ELSE
+            set tipoOperacion = "cierre";
+
+        END IF;
+    end; !
+delimiter ; # reestablece el “;” como delimitador
+
 
 #-----------------------------------------------------------------------------------
 #Creacion de usuarios y otorgamiento de privilegios
@@ -238,6 +294,8 @@ WHERE
     GRANT INSERT ON parquimetros.accede TO 'inspector'@'%';
     GRANT SELECT ON parquimetros.asociado_con TO 'inspector'@'%';
 
-
+#Usuario parquimetro
+    CREATE USER 'parquimetro'@'%' IDENTIFIED BY 'parq';
+    GRANT EXECUTE ON procedure parquimetros.conectar TO 'parquimetro'@'%' ;
 
 
