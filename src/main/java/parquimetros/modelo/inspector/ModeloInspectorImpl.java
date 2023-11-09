@@ -58,7 +58,7 @@ public class ModeloInspectorImpl extends ModeloImpl implements ModeloInspector {
 		 */
 		ArrayList<UbicacionBean> ubicaciones = new ArrayList<UbicacionBean>();
 
-		String sql= "SELECT calle,altura FROM parquimetros GROUP BY calle,altura ;";
+		String sql= "SELECT calle,altura FROM parquimetros;";
 		Statement stmt = this.conexion.createStatement();
 		ResultSet rs= stmt.executeQuery(sql);
 		while(rs.next()){
@@ -468,16 +468,12 @@ public class ModeloInspectorImpl extends ModeloImpl implements ModeloInspector {
 					stmtMulta.close();
 
 					//HACEMOS SELECT DE LA MULTA NUEVAMENTE PARA RECUPERAR EL VALOR DE AUTOINCREMENT PUESTO
-					String recuperarMulta = "SELECT * FROM multa WHERE patente=? AND fecha=? AND hora=? AND id_asociado_con=?;";
-					PreparedStatement stmtRecuperarMulta = this.conexion.prepareStatement(recuperarMulta);
-					stmtRecuperarMulta.setString(1, patente);
-					stmtRecuperarMulta.setDate(2, fecha);
-					stmtRecuperarMulta.setString(3, horaTotal);
-					stmtRecuperarMulta.setInt(4, idAsociado);
-					ResultSet rs = stmtRecuperarMulta.executeQuery();
+					String recuperarMulta = "SELECT LAST_INSERT_ID() AS numero;";
+					Statement stmtRecuperarMulta = this.conexion.createStatement();
+					ResultSet rs = stmtRecuperarMulta.executeQuery(recuperarMulta);
 					if (rs.next()) {
 						MultaPatenteDTO multa = new MultaPatenteDTOImpl(rs.getString("numero"), patente, ubicacion.getCalle(), String.valueOf(ubicacion.getAltura()),
-								rs.getDate("fecha").toString(), rs.getString("hora"),
+								fecha.toString(),horaTotal,
 								String.valueOf(inspectorLogueado.getLegajo()));
 						multas.add(multa);
 					}

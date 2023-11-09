@@ -1,5 +1,7 @@
 package parquimetros.modelo.parquimetro;
 
+import java.sql.ResultSet;
+import java.sql.Statement;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
@@ -7,9 +9,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import parquimetros.modelo.ModeloImpl;
-import parquimetros.modelo.beans.ParquimetroBean;
-import parquimetros.modelo.beans.TarjetaBean;
-import parquimetros.modelo.beans.UbicacionBean;
+import parquimetros.modelo.beans.*;
 import parquimetros.modelo.inspector.dao.datosprueba.DAOParquimetrosDatosPrueba;
 import parquimetros.modelo.inspector.dao.datosprueba.DAOUbicacionesDatosPrueba;
 import parquimetros.modelo.parquimetro.dao.datosprueba.DAOTarjetasDatosPrueba;
@@ -35,7 +35,6 @@ public class ModeloParquimetroImpl extends ModeloImpl implements ModeloParquimet
 		 *      Importante: Para acceder a la B.D. utilice la propiedad this.conexion (de clase Connection) 
 		 *      que se hereda al extender la clase ModeloImpl. 
 		 */
-		ArrayList<TarjetaBean> tarjetas = new ArrayList<>();
 
 		// Datos estáticos de prueba. Quitar y reemplazar por código que recupera las ubicaciones de la B.D. en una lista de UbicacionesBean		 
 		/*DAOTarjetasDatosPrueba.poblar();
@@ -45,8 +44,81 @@ public class ModeloParquimetroImpl extends ModeloImpl implements ModeloParquimet
 		}*/
 		// Fin datos estáticos de prueba.
 
-	
-		return tarjetas;
+		ArrayList<TarjetaBean> retorno = new ArrayList<>();
+
+		//el statement principal, que recupera las tarjetas
+		Statement stmt = null;
+		ResultSet res = null;
+		String sql = "SELECT * FROM tarjetas";
+		stmt = this.conexion.createStatement();
+		res = stmt.executeQuery(sql);
+
+		//el statement que recupera el tipo de tarjeta (para guardar el tipoTarjetaBean dentro del BeanTarjeta)
+		Statement stmtTipo = null;
+		ResultSet resTipo = null;
+		String sqlTipo = null;
+		TipoTarjetaBean tipoTarjeta = null;
+
+		//el statement que recupera el automovil (para guardar el automovilBean dentro del BeanTarjeta)
+		Statement stmtAutomovil = null;
+		ResultSet resAutomovil = null;
+		String sqlAutomovil = null;
+		AutomovilBean automovil = null;
+
+		//el statement que recupera el conductor (para guardar el conductorBean dentro del BeanAutomovil)
+		Statement stmtConductor = null;
+		ResultSet resConductor = null;
+		String sqlConductor = null;
+		ConductorBean conductor = null;
+
+		while(res.next()) {
+			TarjetaBean tarjeta = new TarjetaBeanImpl();
+			tarjeta.setId(res.getInt("id_tarjeta"));
+			tarjeta.setSaldo(res.getDouble("saldo"));
+
+			//se asigna el tipo de tarjetaBean
+			stmtTipo = this.conexion.createStatement();
+			sqlTipo = "SELECT * FROM tipos_tarjeta WHERE tipo='" + res.getString("tipo") + "';";
+			resTipo = stmtTipo.executeQuery(sqlTipo);
+			resTipo.next();
+			tipoTarjeta = new TipoTarjetaBeanImpl();
+			tipoTarjeta.setTipo(resTipo.getString("tipo"));
+			tipoTarjeta.setDescuento(resTipo.getDouble("descuento"));
+			tarjeta.setTipoTarjeta(tipoTarjeta);
+
+			//se asigna el automovilBean
+			stmtAutomovil = this.conexion.createStatement();
+			sqlAutomovil = "SELECT * FROM automoviles WHERE patente='" + res.getString("patente") + "';";
+			resAutomovil = stmtAutomovil.executeQuery(sqlAutomovil);
+			resAutomovil.next();
+			automovil = new AutomovilBeanImpl();
+			automovil.setPatente(resAutomovil.getString("patente"));
+			automovil.setMarca(resAutomovil.getString("marca"));
+			automovil.setModelo(resAutomovil.getString("modelo"));
+			automovil.setColor(resAutomovil.getString("color"));
+
+			//se asigna el conductorBean al automovilBean
+			stmtConductor = this.conexion.createStatement();
+			sqlConductor = "SELECT * FROM conductores WHERE dni=" + resAutomovil.getInt("dni") + ";";
+			resConductor = stmtConductor.executeQuery(sqlConductor);
+			resConductor.next();
+			conductor = new ConductorBeanImpl();
+			conductor.setNroDocumento(resConductor.getInt("dni"));
+			conductor.setRegistro(resConductor.getInt("registro"));
+			conductor.setApellido(resConductor.getString("apellido"));
+			conductor.setNombre(resConductor.getString("nombre"));
+			conductor.setDireccion(resConductor.getString("direccion"));
+			conductor.setTelefono(resConductor.getString("telefono"));
+			automovil.setConductor(conductor);
+
+			//se asigna el automovil a la tarjeta
+			tarjeta.setAutomovil(automovil);
+
+			retorno.add(tarjeta);
+		}
+		System.out.println("se recuperaron bien las tarjetas");
+
+		return retorno;
 	}
 	
 	/*
@@ -67,7 +139,6 @@ public class ModeloParquimetroImpl extends ModeloImpl implements ModeloParquimet
 		 *      Importante: Para acceder a la B.D. utilice la propiedad this.conexion (de clase Connection) 
 		 *      que se hereda al extender la clase ModeloImpl. 
 		 */
-		ArrayList<UbicacionBean> ubicaciones = new ArrayList<UbicacionBean>();
 
 		/*// Datos estáticos de prueba. Quitar y reemplazar por código que recupera las ubicaciones de la B.D. en una lista de UbicacionesBean
 		DAOUbicacionesDatosPrueba.poblar();
@@ -77,16 +148,24 @@ public class ModeloParquimetroImpl extends ModeloImpl implements ModeloParquimet
 		}*/
 		// Fin datos estáticos de prueba.
 
+		ArrayList<UbicacionBean> retorno = new ArrayList<UbicacionBean>();
 
-		//Statement stmt = null;
-		//ResultSet res = null;
-		//String sql = "SELECT * FROM tipos_tarjeta";
-		//stmt = this.conexion.createStatement();
-		//res = stmt.executeQuery(sql);
+		Statement stmt = null;
+		ResultSet res = null;
+		String sql = "SELECT * FROM ubicaciones";
+		stmt = this.conexion.createStatement();
+		res = stmt.executeQuery(sql);
 
-		//SEGUIR
+		while(res.next()) {
+			UbicacionBean ub = new UbicacionBeanImpl();
+			ub.setCalle(res.getString("calle"));
+			ub.setAltura(res.getInt("altura"));
+			ub.setTarifa(res.getDouble("tarifa"));
+			retorno.add(ub);
+		}
 
-		return ubicaciones;
+		System.out.println("se recuperaron bien las ubicaciones");
+		return retorno;
 	}
 
 	@Override
@@ -102,15 +181,28 @@ public class ModeloParquimetroImpl extends ModeloImpl implements ModeloParquimet
 		 *      que se hereda al extender la clase ModeloImpl. 
 		 */
 
-		ArrayList<ParquimetroBean> parquimetros = new ArrayList<ParquimetroBean>();
-
-		// datos de prueba
+		/* datos de prueba
 		DAOParquimetrosDatosPrueba.poblar(ubicacion);
 		
 		for (ParquimetroBean parquimetro : DAOParquimetrosDatosPrueba.datos.values()) {
 			parquimetros.add(parquimetro);	
 		}
-		// Fin datos estáticos de prueba.
+		 Fin datos estáticos de prueba.*/
+
+		ArrayList<ParquimetroBean> parquimetros = new ArrayList<ParquimetroBean>();
+		Statement stmt = null;
+		ResultSet res = null;
+		String sql = "SELECT * FROM parquimetros WHERE calle='" + ubicacion.getCalle() + "' AND altura=" + ubicacion.getAltura() + ";";
+		stmt = this.conexion.createStatement();
+		res = stmt.executeQuery(sql);
+
+		while(res.next()) {
+			ParquimetroBean parquimetro = new ParquimetroBeanImpl();
+			parquimetro.setId(res.getInt("id_parq"));
+			parquimetro.setNumero(res.getInt("numero"));
+			parquimetro.setUbicacion(ubicacion);
+			parquimetros.add(parquimetro);
+		}
 	
 		return parquimetros;
 	}

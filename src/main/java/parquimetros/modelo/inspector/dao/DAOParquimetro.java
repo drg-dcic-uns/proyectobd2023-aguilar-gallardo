@@ -11,6 +11,4 @@ public interface DAOParquimetro {
 	 * @throws Exception
 	 */
 	public UbicacionBean recuperarUbicacion(ParquimetroBean parquimetro) throws Exception;
-		
-	
 }
