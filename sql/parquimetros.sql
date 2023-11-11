@@ -209,59 +209,93 @@ WHERE
     e.fecha_sal IS NULL AND e.hora_sal IS NULL;
 
 use parquimetros;
-delimiter ! # define “!” como delimitador
+delimiter ! # cambia el delimitador
 create procedure conectar(IN IDtarjeta INTEGER , IN IDparq INTEGER)
     begin
-        declare fecha_salida, fecha_entrada DATE;
+        declare fechaHoraEntrada,fechaHoraActual DATETIME;
+        declare fecha_salida, fecha_entrada  DATE;
         declare hora_salida, hora_entrada TIME;
         declare tipoOperacion VARCHAR(10);
-        declare tiempo DECIMAL(5,2);
+        declare tiempoDisponible INTEGER ;
+        declare tiempoTranscurrido INTEGER;
         declare tarifaParquimetro DECIMAL(5,2);
         declare descuentoTarjeta DECIMAL(3,2);
         declare saldoTarjeta DECIMAL(5,2);
-
-        SELECT fecha_sal, hora_sal, fecha_ent, hora_ent INTO fecha_salida, hora_salida, fecha_entrada, hora_entrada FROM estacionamientos WHERE id_tarjeta=IDtarjeta and id_parq=IDparq;
-    
-        SELECT saldo INTO saldoTarjeta FROM tarjetas WHERE id_tarjeta=IDtarjeta;
-
         declare alturaUbicacion SMALLINT;
         declare calleUbicacion VARCHAR(33);
+        declare tipoTarjeta VARCHAR(33);
+        declare fecha_actual DATE;
+        declare hora_actual TIME;
+        declare diferenciaHoras TIME;
+        declare diferenciaFechas,horaEnSegundos INTEGER;
+        declare exito BOOLEAN;
+        DECLARE EXIT HANDLER FOR SQLEXCEPTION
+            BEGIN # Si se produce una SQLEXCEPTION, se retrocede la transacción con ROLLBACK
+                SELECT 'SQLEXCEPTION, transacción abortada' AS resultado;
+                ROLLBACK;
+            END;
+        START TRANSACTION;
+
+        SELECT saldo INTO saldoTarjeta FROM tarjetas WHERE id_tarjeta=IDtarjeta;
 
         SELECT calle, altura INTO calleUbicacion, alturaUbicacion FROM parquimetros WHERE id_parq=IDparq;
         SELECT tarifa INTO tarifaParquimetro FROM ubicaciones WHERE calle=calleUbicacion and altura=alturaUbicacion;
 
-        declare tipoTarjeta VARCHAR(33);
         SELECT tipo INTO tipoTarjeta FROM tarjetas WHERE id_tarjeta=IDtarjeta;
         SELECT descuento INTO descuentoTarjeta FROM tipos_tarjeta WHERE tipo=tipoTarjeta;
 
-        if (fecha_entrada IS NOT NULL and hora_entrada IS NOT NULL fecha_sal IS NULL and hora_sal IS NULL) THEN
-            set tipoOperacion = "apertura";
-            declare fecha_actual DATE;
-            declare hora_actual TIME;
+        IF EXISTS(SELECT * FROM estacionamientos WHERE id_tarjeta=IDtarjeta and id_parq=IDparq and fecha_sal IS NULL and hora_sal IS NULL) THEN
+            set tipoOperacion = 'Cierre';
 
-            SELECT CURDATE() INTO fecha_actual;     #calculo la diferencia de minutos
-            SELECT CURTIME() INTO hora_actual;
-            declare diferenciaFechas, diferenciaHoras TIME;
-            SELECT TIMEDIFF(fecha_entrada, fecha_actual) INTO diferenciaFechas;
-            SELECT TIMEDIFF(fecha_entrada, fecha_actual) INTO diferenciaHoras;
-            set tiempo = (TIME_TO_SEC(diferenciaFechas) + TIME_TO_SEC(diferenciaHoras))/60;
+            SELECT fecha_sal, hora_sal, fecha_ent, hora_ent INTO fecha_salida, hora_salida, fecha_entrada, hora_entrada FROM estacionamientos WHERE id_tarjeta=IDtarjeta and id_parq=IDparq and fecha_sal IS NULL and hora_sal IS NULL;
 
-            set saldoTarjeta = saldoTarjeta−(tiempo∗tarifaParquimetro∗(1−descuentoTarjeta)),
+            set fechaHoraActual = NOW();
+            set hora_actual = CURTIME();
+            set fecha_actual = CURDATE();
 
-            update tarjetas # actualizo el saldo de la tarjeta
-            set saldo = saldoTarjeta
-            where id_tarjeta = IDtarjeta;
+            SELECT CAST(CONCAT(fecha_entrada, ' ', hora_entrada) AS DATETIME ) INTO fechaHoraEntrada;
+            SELECT TIMESTAMPDIFF(minute,fechaHoraEntrada,fechaHoraActual) INTO tiempoTranscurrido;
 
-            update estacionamientos # actualizo el saldo de la tarjeta
-            set  fecha_sal=fecha_actual, hora_sal=hora_actual
-            where id_tarjeta = IDtarjeta and id_parq=IDparq;
 
-            SELECT tipoOperacion as Tipo_Operacion, tiempo as Cantidad_Tiempo_Minutos, saldoTarjeta as Saldo_Actualizado, fecha_entrada as Fecha_Apertura, hora_entrada as Hora_Apertura, fecha_salida as Fecha_Cierre, hora_salida as Hora_Cierre;
+
+            set saldoTarjeta = saldoTarjeta - (tiempoTranscurrido*tarifaParquimetro * (1 - descuentoTarjeta));
+            update tarjetas set saldo = saldoTarjeta where id_tarjeta = IDtarjeta;
+
+            update estacionamientos set fecha_sal = fecha_actual, hora_sal = hora_actual where id_tarjeta = IDtarjeta and id_parq = IDparq and fecha_sal IS NULL and hora_sal IS NULL;
+
+            SELECT GREATEST(-999.99, saldoTarjeta) INTO saldoTarjeta; #Para prevenir el overflow
+
+            SELECT tipoOperacion AS Tipo_Operacion,tiempoTranscurrido as Tiempo_Transcurrido_Estacionamiento, saldoTarjeta as Saldo_Actualizado, fecha_entrada as Fecha_Entrada, hora_entrada as Hora_Entrada, fecha_actual as Fecha_Salida,hora_actual as Hora_Salida;
+
         ELSE
-            set tipoOperacion = "cierre";
+            set tipoOperacion = 'Apertura';
 
+            set tiempoDisponible = saldoTarjeta div (tarifaParquimetro * (1 - descuentoTarjeta));
+
+            set fecha_entrada = CURDATE();
+            set hora_entrada = CURTIME();
+
+            if (saldoTarjeta <= 0) THEN
+                set exito=false;
+            else
+                set exito=true;
+                INSERT INTO estacionamientos (fecha_ent, hora_ent, id_tarjeta, id_parq) VALUES (fecha_entrada, hora_entrada, IDtarjeta, IDparq);
+            END IF;
+
+            SELECT tipoOperacion as Tipo_Operacion,exito as Exito_Operacion, tiempoDisponible as Tiempo_Disponible_Estacionamiento;
         END IF;
-    end; !
+        COMMIT;
+    end !
+delimiter ; # reestablece el “;” como delimitador
+
+delimiter ! # cambia el delimitador
+CREATE TRIGGER actualizar_saldo AFTER UPDATE ON tarjetas
+    FOR EACH ROW
+    BEGIN
+        IF (NEW.saldo > OLD.saldo) THEN
+            INSERT INTO recargas (fecha, hora, saldo_anterior, saldo_posterior, id_tarjeta) VALUES (CURDATE(), CURTIME(), OLD.saldo, NEW.saldo, NEW.id_tarjeta);
+        END IF;
+    END!
 delimiter ; # reestablece el “;” como delimitador
 
 
@@ -296,6 +330,16 @@ delimiter ; # reestablece el “;” como delimitador
 
 #Usuario parquimetro
     CREATE USER 'parquimetro'@'%' IDENTIFIED BY 'parq';
-    GRANT EXECUTE ON procedure parquimetros.conectar TO 'parquimetro'@'%' ;
+    GRANT EXECUTE ON PROCEDURE parquimetros.conectar TO 'parquimetro'@'%';
+    GRANT SELECT ON parquimetros.tarjetas TO 'parquimetro'@'%';
+    GRANT SELECT ON parquimetros.ubicaciones TO 'parquimetro'@'%';
+    GRANT SELECT ON parquimetros.parquimetros TO 'parquimetro'@'%';
+    GRANT SELECT ON parquimetros.tipos_tarjeta TO 'parquimetro'@'%';
+    GRANT SELECT ON parquimetros.automoviles TO 'parquimetro'@'%';
+    GRANT SELECT ON parquimetros.conductores TO 'parquimetro'@'%';
+    GRANT SELECT ON parquimetros.estacionamientos TO 'parquimetro'@'%';
+
+
+
 
 

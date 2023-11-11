@@ -1,5 +1,6 @@
 package parquimetros.modelo.parquimetro;
 
+import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Statement;
@@ -16,6 +17,7 @@ import parquimetros.modelo.inspector.dao.datosprueba.DAOUbicacionesDatosPrueba;
 import parquimetros.modelo.parquimetro.dao.datosprueba.DAOTarjetasDatosPrueba;
 import parquimetros.modelo.parquimetro.dto.EntradaEstacionamientoDTOImpl;
 import parquimetros.modelo.parquimetro.dto.EstacionamientoDTO;
+import parquimetros.modelo.parquimetro.dto.EstacionamientoDTOImpl;
 import parquimetros.modelo.parquimetro.dto.SalidaEstacionamientoDTOImpl;
 import parquimetros.modelo.parquimetro.exception.ParquimetroNoExisteException;
 import parquimetros.modelo.parquimetro.exception.SinSaldoSuficienteException;
@@ -162,13 +164,7 @@ public class ModeloParquimetroImpl extends ModeloImpl implements ModeloParquimet
 		 *      que se hereda al extender la clase ModeloImpl. 
 		 */
 
-		/*// Datos estáticos de prueba. Quitar y reemplazar por código que recupera las ubicaciones de la B.D. en una lista de UbicacionesBean
-		DAOUbicacionesDatosPrueba.poblar();
-		
-		for (UbicacionBean ubicacion : DAOUbicacionesDatosPrueba.datos.values()) {
-			ubicaciones.add(ubicacion);	
-		}*/
-		// Fin datos estáticos de prueba.
+
 
 		ArrayList<UbicacionBean> retorno = new ArrayList<UbicacionBean>();
 
@@ -186,7 +182,6 @@ public class ModeloParquimetroImpl extends ModeloImpl implements ModeloParquimet
 			retorno.add(ub);
 		}
 
-		System.out.println("se recuperaron bien las ubicaciones");
 
 		if (res != null) {
 			res.close();
@@ -259,54 +254,55 @@ public class ModeloParquimetroImpl extends ModeloImpl implements ModeloParquimet
 		 *       SinSaldoSuficienteException, ParquimetroNoExisteException, TarjetaNoExisteException     
 		 *  
 		 */
-		
-		//Datos estáticos de prueba. Quitar y reemplazar por código que recupera los datos reales.
-		if ((tarjeta.getSaldo() < 0) && (tarjeta.getTipoTarjeta().getDescuento() < 1)) {  // tarjeta k1
-			throw new SinSaldoSuficienteException();
+
+		//Primero vemos si existen la tarjeta y el parquimetro.
+		PreparedStatement stmt = this.conexion.prepareStatement("SELECT * FROM tarjetas WHERE id_tarjeta=?");
+		stmt.setInt(1, tarjeta.getId());
+		ResultSet res = stmt.executeQuery();
+		if(!res.next()){
+			throw new TarjetaNoExisteException();
 		}
-		EstacionamientoDTO estacionamiento;
 
-		LocalDateTime currentDateTime = LocalDateTime.now();
-        // Definir formatos para la fecha y la hora
-        DateTimeFormatter dateFormatter = DateTimeFormatter.ofPattern("dd-MM-yyyy");
-        DateTimeFormatter timeFormatter = DateTimeFormatter.ofPattern("HH:mm:ss");
-
-        // Formatear la fecha y la hora como cadenas separadas
-        String fechaAhora = currentDateTime.format(dateFormatter);
-        String horaAhora = currentDateTime.format(timeFormatter);
-		
-		if (tarjeta.getId() == 2) { 		//EntradaEstacionamientoDTO(String tiempoDisponible, String fechaEntrada, String horaEntrada)			
-			estacionamiento = new EntradaEstacionamientoDTOImpl("01:40:00",
-																fechaAhora,
-																horaAhora);
-		} else if (tarjeta.getId() == 3) {  		//SalidaEstacionamientoDTO(String tiempoTranscurrido, String saldoTarjeta, String fechaEntrada,	String horaEntrada, String fechaSalida, String horaSalida)
-			
-			LocalDateTime antes = currentDateTime.minusMinutes(45); // hora actual menos 45 minutos
-			
-			estacionamiento = new SalidaEstacionamientoDTOImpl("00:45:00", // tiempoTranscurrido
-																"10.20", // saldoTarjeta
-																fechaAhora, // fechaEntrada
-																antes.format(timeFormatter), // horaEntrada
-																fechaAhora, // fechaSalida
-																horaAhora); // horaSalida
-		} else if (tarjeta.getId() == 4) { 
-
-			LocalDateTime antes = currentDateTime.minusMinutes(90); // hora actual menos 45 minutos
-			
-			estacionamiento = new SalidaEstacionamientoDTOImpl("01:30:00", // tiempoTranscurrido
-																"-85", // saldoTarjeta
-																fechaAhora, // fechaEntrada
-																antes.format(timeFormatter), // horaEntrada
-																fechaAhora, // fechaSalida
-																horaAhora); // horaSalida
-			
-		} else {
-			throw new Exception();
+		stmt = this.conexion.prepareStatement("SELECT * FROM parquimetros WHERE id_parq=?");
+		stmt.setInt(1, parquimetro.getId());
+		res = stmt.executeQuery();
+		if(!res.next()){
+			throw new ParquimetroNoExisteException();
 		}
-	
-		return estacionamiento;
-		//Fin datos estáticos de prueba
-		
+
+		EstacionamientoDTO retorno = null;
+		stmt = this.conexion.prepareStatement("CALL conectar(?,?)");
+
+		stmt.setInt(1, tarjeta.getId());
+		stmt.setInt(2, parquimetro.getId());
+		res = stmt.executeQuery();
+
+
+		if(res.next()){
+			if(res.getString("Tipo_Operacion").equals("Apertura")){
+				if(res.getInt("Exito_Operacion")==0)
+					throw new SinSaldoSuficienteException();
+				int tiempoDisponible = res.getInt("Tiempo_Disponible_Estacionamiento");
+				stmt = this.conexion.prepareStatement("SELECT * FROM estacionamientos WHERE id_tarjeta=? AND id_parq=? AND estacionamientos.fecha_sal IS NULL");
+				stmt.setInt(1, tarjeta.getId());
+				stmt.setInt(2, parquimetro.getId());
+				res = stmt.executeQuery();
+				if(res.next()){
+
+					retorno = new EntradaEstacionamientoDTOImpl(Integer.toString(tiempoDisponible),res.getDate("fecha_ent").toString(),res.getTime("hora_ent").toString());
+
+				}
+			}
+			else {
+				retorno = new SalidaEstacionamientoDTOImpl(Integer.toString(res.getInt("Tiempo_Transcurrido_Estacionamiento")),Double.toString(res.getDouble("Saldo_Actualizado")),res.getDate("Fecha_Entrada").toString(),res.getTime("Hora_Entrada").toString(),res.getDate("Fecha_Salida").toString(),res.getTime("Hora_Salida").toString());
+			}
+		}
+
+
+		res.close();
+		stmt.close();
+
+		return retorno;
 	}
 
 }
