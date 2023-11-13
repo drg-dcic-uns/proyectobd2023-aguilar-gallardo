@@ -217,7 +217,7 @@ create procedure conectar(IN IDtarjeta INTEGER , IN IDparq INTEGER)
         declare hora_salida, hora_entrada TIME;
         declare tipoOperacion VARCHAR(10);
         declare tiempoDisponible INTEGER ;
-        declare tiempoTranscurrido INTEGER;
+        declare tiempoTranscurrido INTEGER unsigned;
         declare tarifaParquimetro DECIMAL(5,2);
         declare descuentoTarjeta DECIMAL(3,2);
         declare saldoTarjeta DECIMAL(5,2);
@@ -230,8 +230,8 @@ create procedure conectar(IN IDtarjeta INTEGER , IN IDparq INTEGER)
         declare diferenciaFechas,horaEnSegundos INTEGER;
         declare exito BOOLEAN;
         DECLARE EXIT HANDLER FOR SQLEXCEPTION
-            BEGIN # Si se produce una SQLEXCEPTION, se retrocede la transacción con ROLLBACK
-                SELECT 'SQLEXCEPTION, transacción abortada' AS resultado;
+            BEGIN # Si se produce una SQLEXCEPTION, se retrocede la transacci├│n con ROLLBACK
+                SELECT 'SQLEXCEPTION, transacci├│n abortada' AS resultado;
                 ROLLBACK;
             END;
         START TRANSACTION;
@@ -257,13 +257,11 @@ create procedure conectar(IN IDtarjeta INTEGER , IN IDparq INTEGER)
             SELECT TIMESTAMPDIFF(minute,fechaHoraEntrada,fechaHoraActual) INTO tiempoTranscurrido;
 
 
+            SELECT GREATEST(-999.99, saldoTarjeta - (tiempoTranscurrido*tarifaParquimetro * (1 - descuentoTarjeta))) INTO saldoTarjeta; #Para prevenir el overflow
 
-            set saldoTarjeta = saldoTarjeta - (tiempoTranscurrido*tarifaParquimetro * (1 - descuentoTarjeta));
             update tarjetas set saldo = saldoTarjeta where id_tarjeta = IDtarjeta;
 
             update estacionamientos set fecha_sal = fecha_actual, hora_sal = hora_actual where id_tarjeta = IDtarjeta and id_parq = IDparq and fecha_sal IS NULL and hora_sal IS NULL;
-
-            SELECT GREATEST(-999.99, saldoTarjeta) INTO saldoTarjeta; #Para prevenir el overflow
 
             SELECT tipoOperacion AS Tipo_Operacion,tiempoTranscurrido as Tiempo_Transcurrido_Estacionamiento, saldoTarjeta as Saldo_Actualizado, fecha_entrada as Fecha_Entrada, hora_entrada as Hora_Entrada, fecha_actual as Fecha_Salida,hora_actual as Hora_Salida;
 
