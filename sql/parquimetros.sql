@@ -221,66 +221,67 @@ create procedure conectar(IN IDtarjeta INTEGER , IN IDparq INTEGER)
         declare tarifaParquimetro DECIMAL(5,2);
         declare descuentoTarjeta DECIMAL(3,2);
         declare saldoTarjeta DECIMAL(5,2);
-        declare alturaUbicacion SMALLINT;
-        declare calleUbicacion VARCHAR(33);
-        declare tipoTarjeta VARCHAR(33);
         declare fecha_actual DATE;
         declare hora_actual TIME;
-        declare diferenciaHoras TIME;
-        declare diferenciaFechas,horaEnSegundos INTEGER;
         declare exito BOOLEAN;
         DECLARE EXIT HANDLER FOR SQLEXCEPTION
             BEGIN # Si se produce una SQLEXCEPTION, se retrocede la transacci├│n con ROLLBACK
-                SELECT 'SQLEXCEPTION, transacci├│n abortada' AS resultado;
+                SELECT 'SQLEXCEPTION, transaccion abortada' AS Tipo_Operacion;
                 ROLLBACK;
             END;
         START TRANSACTION;
 
-        SELECT saldo INTO saldoTarjeta FROM tarjetas WHERE id_tarjeta=IDtarjeta;
-
-        SELECT calle, altura INTO calleUbicacion, alturaUbicacion FROM parquimetros WHERE id_parq=IDparq;
-        SELECT tarifa INTO tarifaParquimetro FROM ubicaciones WHERE calle=calleUbicacion and altura=alturaUbicacion;
-
-        SELECT tipo INTO tipoTarjeta FROM tarjetas WHERE id_tarjeta=IDtarjeta;
-        SELECT descuento INTO descuentoTarjeta FROM tipos_tarjeta WHERE tipo=tipoTarjeta;
-
-        IF EXISTS(SELECT * FROM estacionamientos WHERE id_tarjeta=IDtarjeta and id_parq=IDparq and fecha_sal IS NULL and hora_sal IS NULL) THEN
-            set tipoOperacion = 'Cierre';
-
-            SELECT fecha_sal, hora_sal, fecha_ent, hora_ent INTO fecha_salida, hora_salida, fecha_entrada, hora_entrada FROM estacionamientos WHERE id_tarjeta=IDtarjeta and id_parq=IDparq and fecha_sal IS NULL and hora_sal IS NULL;
-
-            set fechaHoraActual = NOW();
-            set hora_actual = CURTIME();
-            set fecha_actual = CURDATE();
-
-            SELECT CAST(CONCAT(fecha_entrada, ' ', hora_entrada) AS DATETIME ) INTO fechaHoraEntrada;
-            SELECT TIMESTAMPDIFF(minute,fechaHoraEntrada,fechaHoraActual) INTO tiempoTranscurrido;
-
-
-            SELECT GREATEST(-999.99, saldoTarjeta - (tiempoTranscurrido*tarifaParquimetro * (1 - descuentoTarjeta))) INTO saldoTarjeta; #Para prevenir el overflow
-
-            update tarjetas set saldo = saldoTarjeta where id_tarjeta = IDtarjeta;
-
-            update estacionamientos set fecha_sal = fecha_actual, hora_sal = hora_actual where id_tarjeta = IDtarjeta and id_parq = IDparq and fecha_sal IS NULL and hora_sal IS NULL;
-
-            SELECT tipoOperacion AS Tipo_Operacion,tiempoTranscurrido as Tiempo_Transcurrido_Estacionamiento, saldoTarjeta as Saldo_Actualizado, fecha_entrada as Fecha_Entrada, hora_entrada as Hora_Entrada, fecha_actual as Fecha_Salida,hora_actual as Hora_Salida;
-
+        IF (NOT EXISTS(SELECT * FROM tarjetas WHERE id_tarjeta=IDtarjeta)) THEN
+            SELECT 'No existe la tarjeta' AS Tipo_Operacion;
+        ELSE IF (NOT EXISTS(SELECT * FROM parquimetros WHERE id_parq=IDparq)) THEN
+            SELECT 'No existe el parquimetro' AS Tipo_Operacion;
         ELSE
-            set tipoOperacion = 'Apertura';
 
-            set tiempoDisponible = saldoTarjeta div (tarifaParquimetro * (1 - descuentoTarjeta));
+            SELECT saldo INTO saldoTarjeta FROM tarjetas WHERE id_tarjeta=IDtarjeta FOR UPDATE;
 
-            set fecha_entrada = CURDATE();
-            set hora_entrada = CURTIME();
+            SELECT tarifa INTO tarifaParquimetro FROM ubicaciones JOIN parquimetros ON ubicaciones.calle=parquimetros.calle and ubicaciones.altura=parquimetros.altura WHERE id_parq=IDparq FOR SHARE;
 
-            if (saldoTarjeta <= 0) THEN
-                set exito=false;
-            else
-                set exito=true;
-                INSERT INTO estacionamientos (fecha_ent, hora_ent, id_tarjeta, id_parq) VALUES (fecha_entrada, hora_entrada, IDtarjeta, IDparq);
+            SELECT descuento INTO descuentoTarjeta FROM tipos_tarjeta JOIN tarjetas ON tipos_tarjeta.tipo = tarjetas.tipo WHERE id_tarjeta=IDtarjeta FOR SHARE;
+
+            IF EXISTS(SELECT * FROM estacionamientos WHERE id_tarjeta=IDtarjeta and id_parq=IDparq and fecha_sal IS NULL and hora_sal IS NULL) THEN
+                set tipoOperacion = 'Cierre';
+
+                SELECT fecha_sal, hora_sal, fecha_ent, hora_ent INTO fecha_salida, hora_salida, fecha_entrada, hora_entrada FROM estacionamientos WHERE id_tarjeta=IDtarjeta and id_parq=IDparq and fecha_sal IS NULL and hora_sal IS NULL;
+
+                set fechaHoraActual = NOW();
+                set hora_actual = CURTIME();
+                set fecha_actual = CURDATE();
+
+                SELECT CAST(CONCAT(fecha_entrada, ' ', hora_entrada) AS DATETIME ) INTO fechaHoraEntrada;
+                SELECT TIMESTAMPDIFF(minute,fechaHoraEntrada,fechaHoraActual) INTO tiempoTranscurrido;
+
+
+                SELECT GREATEST(-999.99, saldoTarjeta - (tiempoTranscurrido*tarifaParquimetro * (1 - descuentoTarjeta))) INTO saldoTarjeta; #Para prevenir el overflow
+
+                update tarjetas set saldo = saldoTarjeta where id_tarjeta = IDtarjeta;
+
+                update estacionamientos set fecha_sal = fecha_actual, hora_sal = hora_actual where id_tarjeta = IDtarjeta and id_parq = IDparq and fecha_sal IS NULL and hora_sal IS NULL  ;
+
+                SELECT tipoOperacion AS Tipo_Operacion,tiempoTranscurrido as Tiempo_Transcurrido_Estacionamiento, saldoTarjeta as Saldo_Actualizado, fecha_entrada as Fecha_Entrada, hora_entrada as Hora_Entrada, fecha_actual as Fecha_Salida,hora_actual as Hora_Salida ;
+
+            ELSE
+                set tipoOperacion = 'Apertura';
+
+                set tiempoDisponible = saldoTarjeta div (tarifaParquimetro * (1 - descuentoTarjeta));
+
+                set fecha_entrada = CURDATE();
+                set hora_entrada = CURTIME();
+
+                if (saldoTarjeta <= 0) THEN
+                    set exito=false;
+                else
+                    set exito=true;
+                    INSERT INTO estacionamientos (fecha_ent, hora_ent, id_tarjeta, id_parq) VALUES (fecha_entrada, hora_entrada, IDtarjeta, IDparq);
+                END IF;
+
+                SELECT tipoOperacion as Tipo_Operacion,exito as Exito_Operacion, tiempoDisponible as Tiempo_Disponible_Estacionamiento;
             END IF;
-
-            SELECT tipoOperacion as Tipo_Operacion,exito as Exito_Operacion, tiempoDisponible as Tiempo_Disponible_Estacionamiento;
+        END IF;
         END IF;
         COMMIT;
     end !

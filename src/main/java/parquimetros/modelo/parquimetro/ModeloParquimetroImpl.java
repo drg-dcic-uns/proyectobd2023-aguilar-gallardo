@@ -256,29 +256,26 @@ public class ModeloParquimetroImpl extends ModeloImpl implements ModeloParquimet
 		 */
 
 		//Primero vemos si existen la tarjeta y el parquimetro.
-		PreparedStatement stmt = this.conexion.prepareStatement("SELECT * FROM tarjetas WHERE id_tarjeta=?");
-		stmt.setInt(1, tarjeta.getId());
-		ResultSet res = stmt.executeQuery();
-		if(!res.next()){
-			throw new TarjetaNoExisteException();
-		}
 
-		stmt = this.conexion.prepareStatement("SELECT * FROM parquimetros WHERE id_parq=?");
-		stmt.setInt(1, parquimetro.getId());
-		res = stmt.executeQuery();
-		if(!res.next()){
-			throw new ParquimetroNoExisteException();
-		}
 
 		EstacionamientoDTO retorno = null;
-		stmt = this.conexion.prepareStatement("CALL conectar(?,?)");
+		PreparedStatement stmt = this.conexion.prepareStatement("CALL conectar(?,?)");
 
 		stmt.setInt(1, tarjeta.getId());
 		stmt.setInt(2, parquimetro.getId());
-		res = stmt.executeQuery();
+		ResultSet res = stmt.executeQuery();
 
 
-		if(res.next()){
+		if(res.next()) {
+			if (res.getString("Tipo_Operacion").equals("SQLEXCEPTION, transaccion abortada")) {
+				throw new SQLException(" Transaccion abortada");
+			}
+			if (res.getString("Tipo_Operacion").equals("No existe la tarjeta")) {
+				throw new TarjetaNoExisteException();
+			}
+			if (res.getString("Tipo_Operacion").equals("No existe el parquimetro")){
+				throw new ParquimetroNoExisteException();
+			}
 			if(res.getString("Tipo_Operacion").equals("Apertura")){
 				if(res.getInt("Exito_Operacion")==0)
 					throw new SinSaldoSuficienteException();
