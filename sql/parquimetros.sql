@@ -213,8 +213,8 @@ delimiter ! # cambia el delimitador
 create procedure conectar(IN IDtarjeta INTEGER , IN IDparq INTEGER)
     begin
         declare fechaHoraEntrada,fechaHoraActual DATETIME;
-        declare fecha_salida, fecha_entrada  DATE;
-        declare hora_salida, hora_entrada TIME;
+        declare fecha_entrada  DATE;
+        declare hora_entrada TIME;
         declare tipoOperacion VARCHAR(10);
         declare tiempoDisponible INTEGER ;
         declare tiempoTranscurrido INTEGER unsigned;
@@ -246,7 +246,7 @@ create procedure conectar(IN IDtarjeta INTEGER , IN IDparq INTEGER)
             IF EXISTS(SELECT * FROM estacionamientos WHERE id_tarjeta=IDtarjeta and id_parq=IDparq and fecha_sal IS NULL and hora_sal IS NULL) THEN
                 set tipoOperacion = 'Cierre';
 
-                SELECT fecha_sal, hora_sal, fecha_ent, hora_ent INTO fecha_salida, hora_salida, fecha_entrada, hora_entrada FROM estacionamientos WHERE id_tarjeta=IDtarjeta and id_parq=IDparq and fecha_sal IS NULL and hora_sal IS NULL;
+                SELECT fecha_ent, hora_ent INTO fecha_entrada, hora_entrada FROM estacionamientos WHERE id_tarjeta=IDtarjeta and id_parq=IDparq and fecha_sal IS NULL and hora_sal IS NULL FOR SHARE;
 
                 set fechaHoraActual = NOW();
                 set hora_actual = CURTIME();
