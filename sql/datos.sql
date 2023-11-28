@@ -17,7 +17,7 @@ INSERT INTO tipos_tarjeta VALUES ("Visa", 000.15);
 INSERT INTO tipos_tarjeta VALUES ("Mastercard", 000.20);
 INSERT INTO tipos_tarjeta VALUES ("Naranja", 000.30);
 
-INSERT INTO tarjetas VALUES (546789, -10.12, "AHB987", "Visa");
+INSERT INTO tarjetas VALUES (546789, 700.00, "AHB987", "Visa");
 INSERT INTO tarjetas VALUES (547423, 756.98, "AHB987", "Mastercard");
 INSERT INTO tarjetas VALUES (876123, 134.24, "HJF987", "Naranja");
 INSERT INTO tarjetas VALUES (546839, 777.11, "AHJ546", "Naranja");
@@ -43,7 +43,7 @@ INSERT INTO inspectores VALUES (12765678, 556788, "Tobias", "Gatti", md5('inspec
 
 INSERT INTO ubicaciones VALUES ("Alvarado", 1875, 080.43);
 INSERT INTO ubicaciones VALUES ("Alvarado", 1567, 090.43);
-INSERT INTO ubicaciones VALUES ("Eduardo Gonzalez", 1875, 100.43);
+INSERT INTO ubicaciones VALUES ("Eduardo Gonzalez", 1875, 020.43);
 INSERT INTO ubicaciones VALUES ("Brasil", 1575, 3.43);
 INSERT INTO ubicaciones VALUES ("Aguado", 1675, 120.43);
 
@@ -52,6 +52,7 @@ INSERT INTO parquimetros VALUES (8765, 9, "Alvarado", 1567);
 INSERT INTO parquimetros VALUES (0988, 10, "Eduardo Gonzalez", 1875);
 INSERT INTO parquimetros VALUES (6789, 11, "Brasil", 1575);
 INSERT INTO parquimetros VALUES (1332, 12, "Aguado", 1675);
+INSERT INTO parquimetros VALUES (9999, 13, "Brasil", 1575);
 
 INSERT INTO asociado_con VALUES (16883, 'do', 'm', 44876678, "Alvarado", 1875);
 INSERT INTO asociado_con VALUES (16884, 'lu', 'm', 42654678, "Alvarado", 1567);
@@ -77,7 +78,7 @@ INSERT INTO accede VALUES ('2010-04-02', '18:11:08', 6789, 32145678);
 INSERT INTO accede VALUES ('2010-04-02', '18:11:10', 6789, 12765678);
 
 INSERT INTO estacionamientos VALUES ('2010-04-02', '18:11:10', '2010-04-02', '18:20:10', 546789, 3456);
-INSERT INTO estacionamientos VALUES ('2011-04-02', '18:11:10', NULL, NULL, 547423, 8765);
-INSERT INTO estacionamientos VALUES ('2012-04-02', '18:11:10', NULL, NULL, 876123, 0988);
-INSERT INTO estacionamientos VALUES ('2023-11-14', '14:11:10', NULL, NULL, 546839, 6789);
+INSERT INTO estacionamientos VALUES ('2023-11-28', '14:20:10', NULL, NULL, 547423, 8765);
+INSERT INTO estacionamientos VALUES ('2023-11-28', '14:15:10', NULL, NULL, 876123, 0988);
+INSERT INTO estacionamientos VALUES ('2023-11-28', '14:11:10', NULL, NULL, 546839, 6789);
 INSERT INTO estacionamientos VALUES ('2014-04-02', '18:11:10', '2014-04-02', '18:20:10', 645456, 1332);
